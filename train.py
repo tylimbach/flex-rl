@@ -9,25 +9,27 @@ from transformers import (
 )
 from datasets import load_dataset
 
-# Configuration
+# 🔧 Configuration
 MODEL_NAME = "distilgpt2"
 DATASET_NAME = "wikitext"
 DATASET_CONFIG = "wikitext-2-raw-v1"
-BATCH_SIZE = 4
+BATCH_SIZE = 1
 NUM_EPOCHS = 1
-MAX_TOKENS = 1024  # truncate long sequences
+MAX_TOKENS = 128
 LR = 5e-5
+USE_AMP = torch.cuda.is_available()  # Only use mixed precision on CUDA devices
+
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load tokenizer and model
+# 🧠 Load tokenizer and model
 print(f"Loading model {MODEL_NAME}...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME).to(DEVICE)
-tokenizer.pad_token = tokenizer.eos_token  # GPT-style models often need this
+tokenizer.pad_token = tokenizer.eos_token  # Required for GPT models with padding
 
-# Load and tokenize dataset
+# 📚 Load and tokenize dataset (tiny slice for low memory)
 print(f"Loading dataset {DATASET_NAME}...")
-dataset = load_dataset(DATASET_NAME, DATASET_CONFIG, split="train[:2%]")  # small subset for testing
+dataset = load_dataset(DATASET_NAME, DATASET_CONFIG, split="train[:1%]")
 
 def tokenize_function(examples):
     return tokenizer(
@@ -43,7 +45,7 @@ tokenized = dataset.map(tokenize_function, batched=True, remove_columns=["text"]
 collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 loader = DataLoader(tokenized, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collator)
 
-# Setup optimizer and scheduler
+# 🏃 Setup optimizer and scheduler
 optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
 lr_scheduler = get_scheduler(
     name="linear",
@@ -52,31 +54,48 @@ lr_scheduler = get_scheduler(
     num_training_steps=len(loader) * NUM_EPOCHS,
 )
 
-# Training loop
+# 🧪 Training loop with memory-safe features
+print(f"Training on {len(loader)} steps per epoch, total {len(loader) * NUM_EPOCHS} steps.")
 print("Starting training loop...")
 model.train()
-for epoch in range(NUM_EPOCHS):
-    total_loss = 0
-    total_tokens = 0
-    start_time = time.time()
+scaler = torch.cuda.amp.GradScaler() if USE_AMP else None
 
-    for step, batch in enumerate(loader):
-        batch = {k: v.to(DEVICE) for k, v in batch.items()}
-        outputs = model(**batch)
-        loss = outputs.loss
+try:
+    for epoch in range(NUM_EPOCHS):
+        total_loss = 0
+        total_tokens = 0
+        start_time = time.time()
 
-        loss.backward()
-        optimizer.step()
-        lr_scheduler.step()
-        optimizer.zero_grad()
+        for step, batch in enumerate(loader):
+            batch = {k: v.to(DEVICE) for k, v in batch.items()}
 
-        total_loss += loss.item()
-        total_tokens += batch["input_ids"].numel()
+            with torch.cuda.amp.autocast(enabled=USE_AMP):
+                outputs = model(**batch)
+                loss = outputs.loss
 
-        if (step + 1) % 10 == 0:
-            elapsed = time.time() - start_time
-            tokens_per_sec = total_tokens / elapsed
-            print(f"Epoch {epoch+1} Step {step+1} | Loss: {loss.item():.4f} | "
-                  f"Tokens/sec: {tokens_per_sec:.2f}")
+            if USE_AMP:
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                optimizer.step()
 
-print("Training complete.")
+            optimizer.zero_grad()
+            lr_scheduler.step()
+
+            total_loss += loss.item()
+            total_tokens += batch["input_ids"].numel()
+
+            if (step + 1) % 10 == 0:
+                elapsed = time.time() - start_time
+                tokens_per_sec = total_tokens / elapsed
+                print(f"Epoch {epoch+1} Step {step+1} | Loss: {loss.item():.4f} | "
+                      f"Tokens/sec: {tokens_per_sec:.2f}")
+
+    print("✅ Training complete.")
+
+except RuntimeError as e:
+    print(f"⚠️ RuntimeError: {e}")
+    if DEVICE.type == "cuda":
+        print(torch.cuda.memory_summary(device=DEVICE, abbreviated=True))
