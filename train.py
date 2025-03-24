@@ -8,28 +8,30 @@ from transformers import (
     get_scheduler,
 )
 from datasets import load_dataset
+from torch.profiler import profile, record_function, ProfilerActivity
 
 # 🔧 Configuration
 MODEL_NAME = "distilgpt2"
 DATASET_NAME = "wikitext"
 DATASET_CONFIG = "wikitext-2-raw-v1"
-BATCH_SIZE = 1
+BATCH_SIZE = 4
 NUM_EPOCHS = 1
-MAX_TOKENS = 128
+MAX_TOKENS = 1024
 LR = 5e-5
 USE_AMP = torch.cuda.is_available()  # Only use mixed precision on CUDA devices
+SPLIT = "train[:1%]"
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 🧠 Load tokenizer and model
+# Load tokenizer and model
 print(f"Loading model {MODEL_NAME}...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME).to(DEVICE)
 tokenizer.pad_token = tokenizer.eos_token  # Required for GPT models with padding
 
-# 📚 Load and tokenize dataset (tiny slice for low memory)
+# Load and tokenize dataset
 print(f"Loading dataset {DATASET_NAME}...")
-dataset = load_dataset(DATASET_NAME, DATASET_CONFIG, split="train[:1%]")
+dataset = load_dataset(DATASET_NAME, DATASET_CONFIG, split=SPLIT)
 
 def tokenize_function(examples):
     return tokenizer(
@@ -45,7 +47,7 @@ tokenized = dataset.map(tokenize_function, batched=True, remove_columns=["text"]
 collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 loader = DataLoader(tokenized, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collator)
 
-# 🏃 Setup optimizer and scheduler
+# Setup optimizer and scheduler
 optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
 lr_scheduler = get_scheduler(
     name="linear",
@@ -54,18 +56,19 @@ lr_scheduler = get_scheduler(
     num_training_steps=len(loader) * NUM_EPOCHS,
 )
 
-# 🧪 Training loop with memory-safe features
+# Training loop with memory-safe features
 print(f"Training on {len(loader)} steps per epoch, total {len(loader) * NUM_EPOCHS} steps.")
 print("Starting training loop...")
 model.train()
 scaler = torch.cuda.amp.GradScaler() if USE_AMP else None
 
 try:
+    run_start_time = time.time()
+    run_total_tokens = 0
     for epoch in range(NUM_EPOCHS):
         total_loss = 0
         total_tokens = 0
         start_time = time.time()
-
         for step, batch in enumerate(loader):
             batch = {k: v.to(DEVICE) for k, v in batch.items()}
 
@@ -73,7 +76,7 @@ try:
                 outputs = model(**batch)
                 loss = outputs.loss
 
-            if USE_AMP:
+            if USE_AMP and scaler is not None:
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
                 scaler.update()
@@ -91,9 +94,12 @@ try:
                 elapsed = time.time() - start_time
                 tokens_per_sec = total_tokens / elapsed
                 print(f"Epoch {epoch+1} Step {step+1} | Loss: {loss.item():.4f} | "
-                      f"Tokens/sec: {tokens_per_sec:.2f}")
+                    f"Tokens/sec: {tokens_per_sec:.2f}")
+        run_total_tokens += total_tokens
 
-    print("✅ Training complete.")
+    elapsed = time.time() - run_start_time
+    print(f"\n✅ Training finished in {elapsed:.2f} sec")
+    print(f"   Avg tokens/sec: {run_total_tokens / elapsed:.2f}")
 
 except RuntimeError as e:
     print(f"⚠️ RuntimeError: {e}")

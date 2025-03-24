@@ -1,10 +1,10 @@
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     python3.10 \
     python3-pip \
     python3-dev \
@@ -15,20 +15,23 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libffi-dev \
     ca-certificates \
-    && apt-get clean
+    software-properties-common \
+    gnupg && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Create symlink for python
 RUN ln -s /usr/bin/python3.10 /usr/bin/python
-
-# Upgrade pip
-RUN python -m pip install --upgrade pip
-
-# Copy requirements and install Python deps
 COPY docker/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN python -m pip install --upgrade pip==23.3.1 --no-cache-dir && \
+    pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Optional: Create work directory
 WORKDIR /workspace
-
-# Default command
 CMD [ "bash" ]
+
+# optional perf layer
+FROM base AS perf
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nsight-systems-2024.6.2 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# RUN ln -s /opt/nvidia/nsight-systems/2024.6.2/nsys /usr/local/bin/nsys
