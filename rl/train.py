@@ -1,10 +1,20 @@
 import gymnasium as gym
 import numpy as np
 from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.callbacks import EvalCallback
 import os
 
-RENDER = False
+RENDER_EVAL = True
+EVAL_FREQ = 50_000
+
+N_STEPS = 4096
+GAE_LAMBDA = 0.95
+ENT_COEF = 0.001
+LEARNING_RATE = 3e-4
+
+SCHEDULE_TIMESTEPS = 1_000_000
+TOTAL_TIMESTEPS = 10_000_000
 
 class RenderEvalCallback(EvalCallback):
     def _on_step(self) -> bool:
@@ -18,35 +28,41 @@ class RenderEvalCallback(EvalCallback):
                 action, _ = self.model.predict(np.array(obs) if not isinstance(obs, dict) else obs, deterministic=True)
                 step_result = self.eval_env.step(action)
                 obs, reward, done, info = step_result
-                if RENDER:
+                if RENDER_EVAL:
                     self.eval_env.render()
         return result
 
-
 env_id = "HalfCheetah-v4"
+train_env = DummyVecEnv([lambda: gym.make("HalfCheetah-v4")])
+train_env = VecNormalize(train_env, norm_obs=True, norm_reward=True)
+train_env.save("./workspace/vecnormalize.pkl")
 
-train_env = gym.make(env_id)
+eval_env = DummyVecEnv([lambda: gym.make("HalfCheetah-v4", render_mode="human")])
+eval_env = VecNormalize.load("./workspace/vecnormalize.pkl", eval_env)
+eval_env.training = False
+eval_env.norm_reward = False 
 
-if (RENDER):
-    eval_env = gym.make(env_id, render_mode="human")
-else:
-    eval_env = gym.make(env_id, render_mode="human")
+model = PPO(
+    "MlpPolicy",
+    train_env,
+    n_steps=N_STEPS,
+    gae_lambda=GAE_LAMBDA,
+    ent_coef=ENT_COEF,
+    learning_rate=LEARNING_RATE,
+    verbose=1,
+    tensorboard_log="./workspace/ppo_tensorboard/"
+)
 
-model = PPO("MlpPolicy", train_env, verbose=1, tensorboard_log="./workspace/ppo_tensorboard/")
-
-# Use custom render-enabled EvalCallback
 eval_callback = RenderEvalCallback(
     eval_env,
     best_model_save_path="./workspace/checkpoints/",
     log_path="./workspace/logs/",
-    eval_freq=10_000,
+    eval_freq=EVAL_FREQ,
     deterministic=True,
 )
 
-# Train model
-model.learn(total_timesteps=500_000, callback=eval_callback)
+model.learn(total_timesteps=TOTAL_TIMESTEPS, callback=eval_callback)
 
-# Save final model
 os.makedirs("./workspace/checkpoints", exist_ok=True)
 model.save("./workspace/checkpoints/ppo_halfcheetah_final")
 
