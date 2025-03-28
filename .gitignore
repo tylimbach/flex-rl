@@ -7,4 +7,4 @@
 *.venv
 logdir/
 *.nsys-rep
-workspace/
+workspace*/
