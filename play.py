@@ -11,35 +11,47 @@ def make_env():
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--snapshot", type=str, required=True, help="Path to snapshot folder to load")
+	parser.add_argument("--model", type=str, required=True, help="Path to model snapshot")
 	args = parser.parse_args()
 
+	model_path = os.path.join(args.model, "model.zip")
+	vecnorm_path = os.path.join(args.model, "vecnormalize.pkl")
+
+	if not os.path.exists(model_path) or not os.path.exists(vecnorm_path):
+		raise FileNotFoundError(f"Missing model or VecNormalize in {args.model}")
+
+	print(f"🔍 Loading model from: {model_path}")
+	print(f"🔍 Loading normalization stats from: {vecnorm_path}")
+
 	env = DummyVecEnv([make_env()])
-	env = VecNormalize.load(os.path.join(args.snapshot, "vecnormalize.pkl"), env)
+	env = VecNormalize.load(vecnorm_path, env)
 	env.training = False
 	env.norm_reward = False
 
-	model = RecurrentPPO.load(os.path.join(args.snapshot, "model.zip"), env=env, device="cuda")
+	model = RecurrentPPO.load(model_path, env=env, device="cuda")
 
-	obs = env.reset()
-	lstm_states = None
-	episode_starts = np.ones((env.num_envs,), dtype=bool)
-	total_reward = 0.0
+	running = True
+	while running:
+		try:
+			obs = env.reset()
+			lstm_states = None
+			episode_starts = np.ones((env.num_envs,), dtype=bool)
+			total_reward = 0.0
 
-	done, truncated = False, False
-	while not (done or truncated):
-		action, lstm_states = model.predict(
-			np.array(obs),
-			state=lstm_states,
-			episode_start=episode_starts,
-			deterministic=True
-		)
-		obs, reward, done, info = env.step(action)
-		total_reward += reward[0]
-		episode_starts = done
-		env.render()
+			done = False
+			while not done:
+				action, lstm_states = model.predict(
+					np.array(obs),
+					state=lstm_states,
+					episode_start=episode_starts,
+					deterministic=True
+				)
+				obs, reward, done, info = env.step(action)
+				total_reward += reward[0]
+				episode_starts = done
+				env.render()
 
-	env.reset()
-	env.close()
-
-	print(f"Episode total reward: {total_reward:.2f}")
+			print(f"🎯 Episode total reward: {total_reward:.2f}")
+		except Exception:
+			env.reset()
+			env.close()
