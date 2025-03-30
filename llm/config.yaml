@@ -1,0 +1,10 @@
+model_name: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+output_dir: "./llm/checkpoints"
+train_batch_size: 4
+eval_batch_size: 4
+num_train_epochs: 3
+learning_rate: 5e-5
+warmup_steps: 100
+logging_steps: 10
+save_steps: 500
+max_seq_length: 128

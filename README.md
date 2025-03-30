@@ -1,72 +1,73 @@
-# Building Scalable, Generalized RL Agents
+# Building Scalable, Generalized Agents
 
-This project explores modern reinforcement learning architectures with the goal of building a scalable, multi-skill, and goal-conditioned embodied agent. It’s an engineering and research exercise that walks through the real tradeoffs behind RL pipelines, moving beyond single-skill policies toward a system that can learn and generalize efficiently.
+This project explores modern reinforcement learning architectures for building
+scalable, multi-skill, goal-conditioned embodied agents.
+It’s an engineering and research exercise inspired by systems like **Gemini
+Robotics**, **Gato**, and **Decision Transformer**, focusing on practical
+tradeoffs in RL pipelines.
 
-Starting from classic on-policy RL methods and incorporating emerging offline RL and Transformer-based architectures used by research labs like DeepMind and Meta.
+---
 
 ## Project Overview
 
-### MuJoCo PPO Skill Training
+### Phase 1: Multi-Task Skill Pretraining (In Progress)
 
-The first phase of the project focuses on classic PPO training in MuJoCo environments. I use Gymnasium environments like HalfCheetah and Humanoid to train separate policies for individual skills such as running and recovery.
+The first phase focuses on classic on-policy RL with MuJoCo environments.
+Using **Humanoid-v5**, we pretrain a single policy to perform multiple
+locomotion skills (e.g. walking, turning) via **reward shaping** and randomized goals.
 
-The goal here was to revisit the foundations of on-policy RL and understand where these methods start to break down when trying to build more general agents.
+Although the policy has **no explicit awareness of the goal** at this stage, this
+phase builds a competent low-level controller—a common strategy in modern RL pipelines.
 
-### Offline RL and Transformer Pipeline (In Progress)
+> This mirrors the motor pretraining stage in systems like Gemini Robotics.
 
-The next phase shifts toward an offline RL architecture:
+The policy will later be fine-tuned with explicit goal inputs and used as a building
+block for instruction-conditioned agents.
 
-- Collect millions of trajectory rollouts across various skills
-- Train a Transformer-based policy offline, supervised on these trajectories
-- Condition behavior on goals or language instructions
-- Eliminate the need for brittle policy switching
+---
 
-Offline RL enables GPU-accelerated training and may offer a more flexible unified policy compared to strict policy swapping.
+### Phase 2: Goal-Conditioned RL + Offline Learning (Planned)
 
-This approach is inspired by modern research systems like Decision Transformer and Gato. The project aims to reproduce a scaled-down but technically sound version of those pipelines. Starting out I'll use one machine, but I plan to expand to a cluster. 
+After multi-skill competency is achieved:
 
-### LLM Integration
+- Extend the observation space with **goal embeddings**
+- Train a goal-conditioned policy that can follow language or symbolic goals
+- Shift to **offline RL** for efficient large-scale training:
+  - Collect trajectories from multi-skill policy
+  - Train using a Decision Transformer-style model
+  - Enable skill switching via in-context goal prompts
 
-A secondary goal is to explore LLM integration:
+This architecture enables a **single, unified policy** to generalize over a
+variety of tasks without brittle policy switching.
 
-- Natural language → task translation
-- LLM-driven feedback or evaluation loops
+---
 
-A small fine-tuning script for GPT-2 Medium is included to learn the process of building and training LLMs for this purpose.
+### Phase 3: LLM Integration (Planned)
+
+We will explore large language models for high-level reasoning:
+
+- **Instruction parsing** → convert language tasks into RL-executable goals
+- **LLM-guided feedback** → assess, correct, or propose trajectories
+- Lightweight LLM fine-tuning using models like TinyLlama or GPT-2 Medium
+
+---
 
 ## Setup and Environment
 
-This project is evolving rapidly, but I will do my best to maintain setup instructions. 
-Docker environments are provided for portability and reproducibility.
+Tested on Ubuntu 22.04 and 24.04. I have not yet tested Windows or MacOS.
 
-The environment assumes an NVIDIA GPU (tested on RTX 3080 Ti) and Linux.  
-I’ve tested this on Ubuntu 24.04 and Docker images based on 22.04.
+**Requirements:**
 
-Quick start:
+- NVIDIA GPU (tested on RTX 3080 Ti)
+
+### Quick Start
+
+This project includes a Docker setup for reproducibility and GPU acceleration.
 
 ```bash
 # Build Docker image
-docker build -t rl-env -f rl/docker/Dockerfile .
+docker build -t rl-env -f docker/Dockerfile .
 
 # Run container with GPU
 docker run -it --gpus all -v $(pwd):/workspace -w /workspace rl-env
-```
-
-Alternatively, you can set up a Python venv using the provided `requirements.txt`.
-
-## What's Next
-
-The project is structured in phases:
-
-- Finish trajectory collection for multiple skills
-- Train a unified, goal-conditioned Transformer policy
-- Fine-tune and extend the policy as new skills are added
-- Explore LLM-driven task instruction and evaluation
-- Write a full technical blog post documenting the tradeoffs and design decisions
-
-## Why This Project
-
-This project is part learning exercise, part infrastructure experiment, and part portfolio piece. It’s meant to build practical understanding of how modern RL systems scale—and where the real bottlenecks and challenges are.
-
-If you’re interested in RL systems engineering, distributed compute, or embodied AI, this repo may have something useful for you (especially as it grows!).
 
