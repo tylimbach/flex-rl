@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../config.schema.json
 env_id: "Humanoid-v5"
 
 policy: "MlpLstmPolicy"
@@ -17,3 +18,6 @@ clip_obs: 10.0
 
 snapshot_freq: 100000
 eval_freq: 100000
+eval_episodes: 20
+
+sampling_goals: ["stand still"]

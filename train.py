@@ -1,19 +1,31 @@
-import gymnasium as gym
-from sb3_contrib import RecurrentPPO
-from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv, VecNormalize
-from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
-from humanoid_goal_wrapper import HumanoidGoalWrapper
-import torch
-import os
 import argparse
-import yaml
-import shutil
 import datetime
+import os
+import shutil
+
+import gymnasium as gym
+import torch
+import yaml
+from sb3_contrib import RecurrentPPO
+from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
+
+from humanoid_goal_wrapper import HumanoidGoalWrapper
+from sampling.goal_sampler import GoalSampler
+from evaluate_snapshot import evaluate_snapshot
 
 
-def make_env(id):
-	return lambda: Monitor(HumanoidGoalWrapper(gym.make(id)))
+def make_env(env_id, goal_sampler: GoalSampler):
+	def _init():
+		env = Monitor(
+			HumanoidGoalWrapper(
+				gym.make(env_id),
+				goal_sampler=goal_sampler
+			)
+		)
+		return env
+	return _init
 
 
 def get_unique_experiment_dir(base_path):
@@ -66,37 +78,44 @@ def save_full_snapshot(model, env, path, step, eval_reward=None, interrupt=False
 	os.makedirs(path, exist_ok=True)
 	model.save(os.path.join(path, "model.zip"))
 	env.save(os.path.join(path, "vecnormalize.pkl"))
+	experiment_dir = os.path.dirname(os.path.dirname(path))
+	metadata_src = os.path.join(experiment_dir, "metadata.yaml")
+	metadata_dst = os.path.join(path, "metadata.yaml")
+	if os.path.exists(metadata_src):
+		shutil.copy(metadata_src, metadata_dst)
+
 	update_snapshot_log(os.path.dirname(path), step, eval_reward, interrupt)
 	print(f"✅ Saved snapshot at {path}")
 
 
-class SnapshotCallback(BaseCallback):
-	def __init__(self, save_freq, env, save_dir, verbose=0):
+class SnapshotAndEvalCallback(BaseCallback):
+	def __init__(self, model, save_freq, env, save_dir, eval_episodes=10, verbose=0):
 		super().__init__(verbose)
+		self.model = model
 		self.save_freq = save_freq
 		self.env = env
 		self.save_dir = save_dir
+		self.eval_episodes = eval_episodes
+		self.best_reward = float('-inf')
 
 	def _on_step(self):
 		if self.n_calls % self.save_freq == 0:
 			snap_dir = os.path.join(self.save_dir, f"{self.num_timesteps}")
+			os.makedirs(snap_dir, exist_ok=True)
+
 			save_full_snapshot(self.model, self.env, snap_dir, self.num_timesteps)
-		return True
 
+			results = evaluate_snapshot(snap_dir, eval_episodes=self.eval_episodes)
+			mean_reward = sum(results.values()) / len(results)
+			print(f"Eval result at {self.num_timesteps}: {mean_reward:.2f}")
 
-class BestSnapshotCallback(BaseCallback):
-	def __init__(self, model, env, save_dir, verbose=0):
-		super().__init__(verbose)
-		self.model = model
-		self.env = env
-		self.save_dir = save_dir
+			if mean_reward > self.best_reward:
+				self.best_reward = mean_reward
+				best_dir = os.path.join(self.save_dir, "best")
+				os.makedirs(best_dir, exist_ok=True)
+				save_full_snapshot(self.model, self.env, best_dir, self.num_timesteps, eval_reward=mean_reward)
+				print(f"New best model saved at step {self.num_timesteps} with reward {mean_reward:.2f}")
 
-	def _on_step(self):
-		return True
-
-	def __call__(self, _locals, _globals):
-		snap_dir = os.path.join(self.save_dir, "best")
-		save_full_snapshot(self.model, self.env, snap_dir, self.model.num_timesteps)
 		return True
 
 
@@ -140,7 +159,7 @@ def print_summary(base_dir):
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--name", type=str, required=True, help="Experiment name")
-	parser.add_argument("--config", type=str, default="config/humanoid_goal.yaml", help="Path to config file (YAML)")
+	parser.add_argument("--config", type=str, default="config/humanoid_default.yaml", help="Path to config file (YAML)")
 	parser.add_argument("--model", type=str, help="Optional snapshot folder to resume training")
 	parser.add_argument("--lineage", type=str, help="Optional: Print lineage of an experiment path and exit")
 	args = parser.parse_args()
@@ -152,12 +171,12 @@ if __name__ == "__main__":
 	exp_base = f"./workspace/{args.name}"
 	BASE_DIR = get_unique_experiment_dir(exp_base)
 	CHECKPOINT_DIR = f"{BASE_DIR}/checkpoints"
-	TENSORBOARD_DIR = f"{BASE_DIR}/tensorboard"
+	LOG_DIR = f"{BASE_DIR}/log"
 	EXPERIMENT_CONFIG = f"{BASE_DIR}/config.yaml"
 
 	os.makedirs(BASE_DIR, exist_ok=True)
 	os.makedirs(CHECKPOINT_DIR, exist_ok=True)
-	os.makedirs(TENSORBOARD_DIR, exist_ok=True)
+	os.makedirs(LOG_DIR, exist_ok=True)
 
 	if not os.path.exists(args.config):
 		raise FileNotFoundError(f"Config file {args.config} not found")
@@ -169,23 +188,29 @@ if __name__ == "__main__":
 		cfg = yaml.safe_load(f)
 
 	N_ENVS = cfg["n_envs"]
+	train_goals = cfg.get("sampling_goals", ["walk forward", "turn left", "turn right"])
+
+	goal_sampler = GoalSampler(
+		strategy=cfg.get("sampling_strategy", "balanced"),
+		goals=train_goals
+	)
 
 	if args.model:
 		print(f"Loading snapshot from {args.model}")
-		dummy_env = SubprocVecEnv([make_env(cfg["env_id"]) for _ in range(N_ENVS)])
-		env = VecNormalize.load(os.path.join(args.model, "vecnormalize.pkl"), dummy_env)
+		dummy_env = SubprocVecEnv([make_env(cfg["env_id"], goal_sampler) for _ in range(N_ENVS)])
+		normalize_path = os.path.join(args.model, "vecnormalize.pkl")
+		env = VecNormalize.load(normalize_path, dummy_env)
 		env.training = True
 		env.norm_reward = True
-		normalize_path = os.path.join(args.model, "vecnormalize.pkl")
 		parent_path = args.model
 		resumed_at = int(os.path.basename(os.path.normpath(args.model))) if os.path.basename(os.path.normpath(args.model)).isdigit() else None
 
 		model = RecurrentPPO.load(os.path.join(args.model, "model.zip"), env=env, device="cuda")
-		model.tensorboard_log = TENSORBOARD_DIR
+		model.tensorboard_log = LOG_DIR
 		print(f"✅ Loaded model and VecNormalize from {args.model}")
 	else:
 		print("Starting fresh training run...")
-		env = SubprocVecEnv([make_env(cfg["env_id"]) for _ in range(N_ENVS)])
+		env = SubprocVecEnv([make_env(cfg["env_id"], goal_sampler) for _ in range(N_ENVS)])
 		env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=cfg["clip_obs"])
 		normalize_path = None
 		parent_path = None
@@ -208,19 +233,17 @@ if __name__ == "__main__":
 			clip_range=cfg["clip_range"],
 			verbose=1,
 			device="cuda",
-			tensorboard_log=TENSORBOARD_DIR
+			tensorboard_log=LOG_DIR
 		)
 
 	save_metadata(BASE_DIR, cfg, parent=parent_path, resumed_at=resumed_at)
 	print(f"📝 Metadata saved at {BASE_DIR}/metadata.yaml")
 
-	snapshot_cb = SnapshotCallback(
-		save_freq=cfg["snapshot_freq"],
-		env=env,
-		save_dir=CHECKPOINT_DIR
-	)
+	eval_env = DummyVecEnv([
+		make_env(cfg["env_id"], GoalSampler(strategy="balanced", goals=[goal]))
+		for goal in train_goals
+	])
 
-	eval_env = DummyVecEnv([make_env(cfg["env_id"])])
 	if normalize_path:
 		eval_env = VecNormalize.load(normalize_path, eval_env)
 	else:
@@ -229,20 +252,12 @@ if __name__ == "__main__":
 	eval_env.training = False
 	eval_env.norm_reward = False
 
-	best_cb = BestSnapshotCallback(model, env, CHECKPOINT_DIR)
-
-	eval_cb = EvalCallback(
-		eval_env,
-		callback_on_new_best=best_cb,
-		log_path=CHECKPOINT_DIR,
-		eval_freq=cfg["eval_freq"] // N_ENVS,
-		n_eval_episodes=5,
-		deterministic=True,
-		render=False
-	)
+	eval_episodes = cfg["eval_episodes"]
+	eval_freq = cfg["eval_freq"] // N_ENVS
+	eval_cb = SnapshotAndEvalCallback(model, eval_freq, env, CHECKPOINT_DIR, eval_episodes=eval_episodes)
 
 	try:
-		model.learn(total_timesteps=cfg["total_timesteps"], callback=[snapshot_cb, eval_cb])
+		model.learn(total_timesteps=cfg["total_timesteps"], callback=[eval_cb])
 	except KeyboardInterrupt:
 		print("Training interrupted. Saving snapshot...")
 		snap_dir = os.path.join(CHECKPOINT_DIR, "manual_interrupt")
