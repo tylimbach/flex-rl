@@ -48,7 +48,7 @@ def save_metadata(path, cfg, parent=None, resumed_at=None):
 		"resumed_at_step": resumed_at,
 	}
 	with open(os.path.join(path, "metadata.yaml"), "w") as f:
-		yaml.dump(metadata, f)
+		yaml.safe_dump(metadata, f)
 
 
 def update_snapshot_log(save_dir, step, eval_reward=None, interrupt=False):
@@ -60,18 +60,18 @@ def update_snapshot_log(save_dir, step, eval_reward=None, interrupt=False):
 		log = {"snapshots": [], "cumulative_steps": 0}
 
 	entry = {
-		"step": step,
+		"step": int(step),
 		"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-		"interrupt": interrupt
+		"interrupt": bool(interrupt)
 	}
 	if eval_reward is not None:
-		entry["eval_reward"] = eval_reward
+		entry["eval_reward"] = float(eval_reward)
 
 	log["snapshots"].append(entry)
-	log["cumulative_steps"] = step
+	log["cumulative_steps"] = int(step)
 
 	with open(log_path, "w") as f:
-		yaml.dump(log, f)
+		yaml.safe_dump(log, f)
 
 
 def save_full_snapshot(model, env, path, step, eval_reward=None, interrupt=False):

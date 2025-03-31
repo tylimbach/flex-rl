@@ -16,6 +16,8 @@ The first phase focuses on classic on-policy RL with MuJoCo environments.
 Using **Humanoid-v5**, we pretrain a single policy to perform multiple
 locomotion skills (e.g. walking, turning) via **reward shaping** and randomized goals.
 
+![Multitask Pre-Trained Humanoid](assets/pretrained_humanoid_multitask.mp4)
+
 Although the policy has no explicit awareness of the goal at this stage, this
 phase builds a competent low-level controller—a common strategy in modern RL pipelines.
 
