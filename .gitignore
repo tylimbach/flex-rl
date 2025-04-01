@@ -5,6 +5,9 @@
 *.cubin
 *.fatbin
 *.venv
-logdir/
 *.nsys-rep
-workspace*/
+
+logdir/
+__pycache__/
+
+workspace/

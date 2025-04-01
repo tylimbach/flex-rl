@@ -1,0 +1,7 @@
+workspace/
+assets/
+*.log
+*.tmp
+__pycache__/
+*.pyc
+.git/

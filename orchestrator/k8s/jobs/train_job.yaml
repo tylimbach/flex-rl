@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ job_name }}
+spec:
+  template:
+    spec:
+      containers:
+      - name: {{ container_name }}
+        image: {{ docker_image }}
+        command: {{ command }}
+        args: {{ args }}
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        resources:
+          limits:
+            nvidia.com/gpu: {{ gpu }}
+            cpu: {{ cpu }}
+            memory: {{ memory }}
+      restartPolicy: Never
+      volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: workspace-pvc
+  backoffLimit: 1
