@@ -14,9 +14,9 @@ from humanoid_goal_wrapper import HumanoidGoalWrapper
 SAVE_DIR = "trajectories"
 
 
-def make_env(env_id, goal_sampler):
+def make_env(env_id, goal_sampler, goal_reward_scale):
 	def _init():
-		env = Monitor(HumanoidGoalWrapper(gym.make(env_id), goal_sampler=goal_sampler))
+		env = Monitor(HumanoidGoalWrapper(gym.make(env_id), goal_sampler=goal_sampler, goal_reward_scale=goal_reward_scale))
 		return env
 	return _init
 
@@ -38,8 +38,9 @@ def record_trajectories(snapshot_path, num_episodes):
 		strategy="balanced",
 		goals=train_goals
 	)
+	goal_reward_scale = cfg.get("goal_reward_scale")
 
-	env = DummyVecEnv([make_env(cfg["env_id"], goal_sampler)])
+	env = DummyVecEnv([make_env(cfg["env_id"], goal_sampler, goal_reward_scale)])
 	env = VecNormalize.load(vecnorm_path, env)
 	env.training = False
 	env.norm_reward = False
