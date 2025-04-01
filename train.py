@@ -12,18 +12,13 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
 
 from humanoid_goal_wrapper import HumanoidGoalWrapper
-from sampling.goal_sampler import GoalSampler
+from goal import GoalSampler, load_goals_from_config
 from evaluate_snapshot import evaluate_snapshot
 
 
 def make_env(env_id, goal_sampler: GoalSampler):
 	def _init():
-		env = Monitor(
-			HumanoidGoalWrapper(
-				gym.make(env_id),
-				goal_sampler=goal_sampler
-			)
-		)
+		env = Monitor(HumanoidGoalWrapper(gym.make(env_id), goal_sampler))
 		return env
 	return _init
 
@@ -188,12 +183,13 @@ if __name__ == "__main__":
 		cfg = yaml.safe_load(f)
 
 	N_ENVS = cfg["n_envs"]
-	train_goals = cfg.get("sampling_goals", ["walk forward", "turn left", "turn right"])
+	train_goals = load_goals_from_config(cfg.get("sampling_goals"))
 
 	goal_sampler = GoalSampler(
 		strategy=cfg.get("sampling_strategy", "balanced"),
 		goals=train_goals
 	)
+	goal_reward_scale = cfg.get("goal_reward_scale")
 
 	if args.model:
 		print(f"Loading snapshot from {args.model}")

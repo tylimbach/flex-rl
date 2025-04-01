@@ -1,62 +1,35 @@
-from typing import Optional, Any, Dict, Tuple
-import numpy as np
 import gymnasium as gym
-from sampling.goal_sampler import GoalSampler
+from typing import Optional
+import numpy as np
+from goal import Goal, GoalSampler
+
 
 class HumanoidGoalWrapper(gym.Wrapper):
-	def __init__(self, env: gym.Env, goal_sampler: GoalSampler, goal_reward_scale: float = 1.0, debug: bool = False):
+	def __init__(self, env, goal_sampler: GoalSampler):
 		super().__init__(env)
 		self.goal_sampler = goal_sampler
-		self.goal: Optional[str] = None
-		self.last_x = 0.0
-		self.last_y = 0.0
-		self.goal_reward_scale = goal_reward_scale
-		self.debug = debug
+		self.goal: Goal = goal_sampler.peek()
+		self.prev_info = {}
 
-	def reset(self, **kwargs: Any) -> Tuple[np.ndarray, Dict[str, Any]]:
-		options = kwargs.get("options", {})
-		goal = options.get("goal") or self.goal_sampler.next()
+	def reset(self, **kwargs):
+		self.goal = self.goal_sampler.next()
 
-		self.goal = goal
 		obs, info = self.env.reset(**kwargs)
-		self.last_x = info.get("x_position", 0.0)
-		self.last_y = info.get("y_position", 0.0)
-		info["goal"] = self.goal
+		self.prev_info = info.copy()
 
-		if self.debug:
-			print(f"[Reset] Goal: {self.goal}")
-			print(f"[Reset] x: {self.last_x:.3f}, y: {self.last_y:.3f}")
-
+		info["goal"] = self.goal.name if self.goal is not None else None
 		return obs, info
 
-	def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
+	def step(self, action):
 		obs, reward, terminated, truncated, info = self.env.step(action)
-		x_pos = info.get("x_position", 0.0)
-		y_pos = info.get("y_position", 0.0)
-		delta_x = x_pos - self.last_x
-		delta_y = y_pos - self.last_y
+		goal_reward = self.goal.compute_reward(self.prev_info, info)
+		reward = float(reward) + goal_reward
 
-		goal_reward = 0.0
-		if self.goal == "walk forward":
-			goal_reward = delta_x
-		elif self.goal == "turn left":
-			goal_reward = -delta_y
-		elif self.goal == "turn right":
-			goal_reward = delta_y
-		elif self.goal == "stand still":
-			goal_reward = - (abs(delta_x) + abs(delta_y))
+		if self.goal.check_termination(info):
+			terminated = True
 
-		reward = float(reward) + self.goal_reward_scale * goal_reward
-
-		self.last_x = x_pos
-		self.last_y = y_pos
-		info["goal"] = self.goal
+		info["goal"] = self.goal.name
 		info["goal_reward"] = goal_reward
-
-		if self.debug:
-			print(f"[Step] Goal: {self.goal}")
-			print(f"[Step] Δx: {delta_x:.3f}, Δy: {delta_y:.3f}, Goal Reward: {goal_reward:.3f}")
-			if terminated:
-				print("[Step] Terminated - likely fell")
+		self.prev_info = info.copy()
 
 		return obs, reward, terminated, truncated, info

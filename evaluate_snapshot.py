@@ -1,19 +1,17 @@
 import os
 import yaml
 import numpy as np
-import torch
 import gymnasium as gym
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.monitor import Monitor
 from sb3_contrib import RecurrentPPO
-from sampling.goal_sampler import GoalSampler
+from goal import GoalSampler, load_goals_from_config
 from humanoid_goal_wrapper import HumanoidGoalWrapper
 
 
-def make_eval_env(env_id, goals):
+def make_env(env_id, goal_sampler: GoalSampler):
 	def _init():
-		sampler = GoalSampler(strategy="balanced", goals=[goals])
-		env = Monitor(HumanoidGoalWrapper(gym.make(env_id), goal_sampler=sampler))
+		env = Monitor(HumanoidGoalWrapper(gym.make(env_id), goal_sampler))
 		return env
 	return _init
 
@@ -29,12 +27,14 @@ def evaluate_snapshot(snapshot_path, eval_episodes=10):
 	with open(metadata_path) as f:
 		metadata = yaml.safe_load(f)
 		cfg = metadata["config"]
-		goals = cfg.get("sampling_goals", ["walk forward", "turn left", "turn right", "stand still"])
+		goals = load_goals_from_config(cfg.get("sampling_goals"))
 
 	results = {}
 
+
 	for goal in goals:
-		env = DummyVecEnv([make_eval_env(cfg["env_id"], goal)])
+		sampler = GoalSampler.single(goal)
+		env = DummyVecEnv([make_env(cfg["env_id"], sampler)])
 		env = VecNormalize.load(vecnorm_path, env)
 		env.training = False
 		env.norm_reward = False

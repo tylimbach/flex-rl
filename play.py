@@ -7,7 +7,7 @@ from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.monitor import Monitor
 import yaml
-from sampling.goal_sampler import GoalSampler
+from goal import GoalSampler, load_goals_from_config
 from humanoid_goal_wrapper import HumanoidGoalWrapper
 
 
@@ -49,11 +49,11 @@ if __name__ == "__main__":
 	with open(config_path) as f:
 		metadata = yaml.safe_load(f)
 	cfg = metadata["config"]
-	train_goals = cfg.get("sampling_goals", ["walk forward", "turn left", "turn right", "stand still"])
+	goals = load_goals_from_config(cfg.get("sampling_goals"))
 
 	goal_sampler = GoalSampler(
 		strategy="balanced",
-		goals=train_goals
+		goals=goals
 	)
 
 	render_mode = "rgb_array" if args.video else "human"
@@ -91,7 +91,7 @@ if __name__ == "__main__":
 		print(f"🎯 Episode reward: {total_reward:.2f} | Goal: {info[0].get('goal')}")
 		save_media(frames, output_path)
 	else:
-		print(f"🎮 Starting live interactive play...")
+		print("🎮 Starting live interactive play...")
 		while True:
 			try:
 				lstm_states = None
