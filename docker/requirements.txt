@@ -5,6 +5,7 @@ stable-baselines3[extra]==2.6.0
 gymnasium[mujoco]==1.1.1
 matplotlib==3.10.1
 sb3-contrib==2.6.0
+pyyaml==6.0.1
 
 # LLM + Fine-tuning
 transformers[torch]==4.50.1

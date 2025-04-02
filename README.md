@@ -1,99 +1,127 @@
 # flex-rl — Scalable RL Training & Orchestration Pipeline
 
-flex-rl aims to be a research-grade reinforcement learning pipeline focused on
-**scalable, reproducible training and offline learning workflows**.
-While the underlying experiments explore goal-conditioned motor agents,
-the primary emphasis is on building a robust, maintainable infrastructure to
-support large-scale RL research.
+**flex-rl** is a research-grade reinforcement learning pipeline focused on scalable, reproducible infrastructure for goal-conditioned and offline RL training. While the experiments emphasize motor skill learning, the primary focus is building maintainable infrastructure for large-scale RL workflows.
 
-The RL techniques and training architecture is inspired by systems like **Gemini
-Robotics**, **Gato**, and **Decision Transformers**.
+The architecture and techniques are inspired by systems like **Gemini
+Robotics**, **Gato**, and **Decision Transformer**.
 
 ---
 
 ## Project Overview
 
-### Pipeline & Infrastructure Focus
+### Infrastructure & Research Goal
 
-The flex-rl system is built for:
+The project is designed around two priorities:
 
-- **Reproducible RL training & evaluation workflows**
-- **Orchestration of multi-experiment sweeps via Kubernetes**
-- **Persistent experiment lineage & snapshot tracking**
-- **Seamless local dev + production-ready cluster deployment**
+- Building scalable RL infrastructure.
+- Enabling efficient, multi-skill, goal-conditioned agent training.
+
+The infrastructure supports:
+
+✅ Reproducible experiment workflows
+✅ Full Kubernetes orchestration with sweep config support
+✅ Persistent experiment tracking and lineage
+✅ Seamless local development + production-ready runtime image
 
 ---
 
 ### Research Context
 
-The research goal is to pretrain and fine-tune multi-skill motor agents using
-scalable infrastructure:
+To start, the underlying research workflow focuses on:
 
-**Phase 1: Multi-Skill Pretraining**  
-Train a MuJoCo Humanoid agent to perform multiple locomotion tasks (walking,
-turning) using reward shaping. The Pipeline makes spawning of single-task and
-multi-task training sessions easy.
+#### Phase 1: Multi-Skill Pretraining
 
-**Phase 2: Goal-Conditioned Fine-Tuning & Offline Learning**  
-Extend policies with explicit goal embeddings, collect large-scale trajectory
-data, and fine-tune using behavior cloning or Decision Transformer-style architectures.
+Training MuJoCo Humanoid agents on multiple locomotion skills (walking, turning) using on-policy PPO.
 
-**Phase 3: LLM Integration (Planned)**  
-Enable instruction-conditioned behavior via lightweight LLM models for goal interpretation and feedback.
+#### Phase 2: Goal-Conditioned Fine-Tuning & Offline Learning
 
----
+Fine-tuning agents with explicit goal embeddings and large-scale offline data (e.g. Behavior Cloning, Decision Transformer).
 
-## Infrastructure Highlights
+#### Phase 3: LLM Integration
 
-✅ **Full Kubernetes Orchestration**  
-Training, evaluation, and data collection jobs submitted via CLI and sweep YAML configs.
-
-✅ **Local & Cloud-Ready Workflow**  
-The project includes both a live-mounted development container and a minimal runtime image for production Kubernetes execution.
-
-✅ **Makefile Automation**  
-All common workflows (build, cluster up/down, sweep submission) are automated via Makefile.
-
-✅ **Persistent Experiment Tracking**  
-Experiments are saved under `workspace/`, supporting reproducibility and analysis.
+Instruction-conditioned behavior using lightweight language models.
 
 ---
 
-## Setup and Environment
+## Environment Setup
 
-Tested on Ubuntu 22.04 and 24.04. I have not yet tested Windows or MacOS.
+Tested on Ubuntu 22.04 and 24.04.
+
+Not tested on Windows or MacOS.
 
 **Requirements:**
 
+For local development:
+
 - NVIDIA GPU (tested on RTX 3080 Ti)
-
-> To orchestrate sweeps with Kubernetes you need a bit extra
-
+- Python 3.10
 - Docker
-- [Kind](https://kind.sigs.k8s.io)
+
+For local orchestration:
+
+- Minikube
 - kubectl
 
-### Quick Start
+## Quick Start
 
-This project includes a Docker setup for reproducibility and GPU acceleration.
+All training artifacts are saved under ./workspace/ by default.
 
-**All experiment artifacts will be stored in `./workspace/`.**
-
-#### Setup dev environment:
+### 1. Local Dev Environment
 
 ```bash
 make build-dev
 make shell
 ```
 
-#### Begin training:
+From inside the dev container:
 
-```bash 
+```bash
 python train.py --name test_run --config examples/humanoid_walk_forward.yaml
 ```
 
-#### Launch a training sweep:
+### 2. Kubernetes Sweep Workflow (Local)
 
-> TBA: Experiment storage and portability is being actively refined for local and cluster workflows.
+> This workflow is in flux. More detailed customization instructions will be added as development progresses.
+
+One-time: Start local registry
+
+```bash
+make build-runtime
+docker run -d -p 5000:5000 --restart=always --name registry registry:2
+```
+
+Start Minikube cluster
+
+```bash
+make minikube-up
+make pvc-up
+```
+
+Build and push runtime image
+
+```bash
+make sweep-dev
+```
+
+This will:
+
+- Build runtime container
+- Push to localhost:5000
+- Submit a default configured sweep job
+
+View TensorBoard
+
+```bash
+make tensorboard-up
+```
+
+Clean up
+
+```bash
+make jobs-clean
+make pvc-down
+make minikube-down
+make tensorboard-down
+```
 
 ---

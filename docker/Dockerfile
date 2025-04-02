@@ -40,9 +40,12 @@ RUN curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64 && \
     chmod +x ./kind && mv ./kind /usr/local/bin/kind
 
 RUN ln -s /usr/bin/python3.10 /usr/bin/python
+
 COPY docker/requirements.txt /tmp/requirements.txt
-RUN python -m pip install --upgrade pip==23.3.1 --no-cache-dir && \
-    pip install --no-cache-dir -r /tmp/requirements.txt
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+	python -m pip install --upgrade pip==23.3.1 --no-cache-dir && \
+	pip install --no-cache-dir -r /tmp/requirements.base.txt
 
 CMD [ "bash" ]
 

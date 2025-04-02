@@ -2,7 +2,7 @@
 env_id: "Humanoid-v5"
 
 policy: "MlpLstmPolicy"
-n_envs: 4
+n_envs: 2
 total_timesteps: 10000000
 learning_rate: 0.0003
 batch_size: 4096
@@ -20,5 +20,6 @@ snapshot_freq: 100000
 eval_freq: 100000
 eval_episodes: 20
 
-sampling_goals: ["stand_still"]
-goal_reward_scale: 500.0
+sampling_goals:
+  - name: "stand_still"
+    weight: 500.0

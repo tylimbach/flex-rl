@@ -18,6 +18,9 @@ class Goal:
 def walk_forward_reward(prev, curr):
 	return curr.get("x_position", 0.0) - prev.get("x_position", 0.0)
 
+def walk_backward_reward(prev, curr):
+	return - (curr.get("x_position", 0.0) - prev.get("x_position", 0.0))
+
 def turn_left_reward(prev, curr):
 	return - (curr.get("y_position", 0.0) - prev.get("y_position", 0.0))
 
@@ -39,6 +42,7 @@ def jump_termination(info):
 def get_builtin_goals():
 	return {
 		"walk_forward": Goal("walk_forward", walk_forward_reward),
+		"walk_backward": Goal("walk_backward", walk_forward_reward),
 		"turn_left": Goal("turn_left", turn_left_reward),
 		"turn_right": Goal("turn_right", turn_right_reward),
 		"stand_still": Goal("stand_still", stand_still_reward),

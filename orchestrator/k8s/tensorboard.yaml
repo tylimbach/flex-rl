@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tensorboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tensorboard
+  template:
+    metadata:
+      labels:
+        app: tensorboard
+    spec:
+      containers:
+      - name: tensorboard
+        image: tensorflow/tensorflow:2.19.0
+        args:
+          - "tensorboard"
+          - "--logdir=/workspace"
+          - "--port=6006"
+        ports:
+        - containerPort: 6006
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+      volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: flex-rl-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tensorboard
+spec:
+  selector:
+    app: tensorboard
+  ports:
+  - protocol: TCP
+    port: 6006
+    targetPort: 6006
+  type: ClusterIP

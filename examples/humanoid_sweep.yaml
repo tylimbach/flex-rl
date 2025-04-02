@@ -1,16 +1,18 @@
 sweep_name: humanoid_goal_sampling
 resources:
   gpu: 0  # Set to 0 to disable exclusive GPU allocation (for shared use)
-  cpu: 2
-  memory: 6Gi
+  cpu: 1
+  memory: 2Gi
 experiments:
   - name: exp_humanoid_walk
-    config: config/humanoid_walk_forward.yaml
+    config: examples/humanoid_walk_forward.yaml
   - name: exp_humanoid_turn_left
-    config: config/humanoid_turn_left.yaml
+    config: examples/humanoid_turn_left.yaml
   - name: exp_humanoid_turn_right
-    config: config/humanoid_turn_right.yaml
+    config: examples/humanoid_turn_right.yaml
   - name: exp_humanoid_walk_backward
-    config: config/humanoid_walk_backward.yaml
+    config: examples/humanoid_walk_backward.yaml
   - name: exp_humanoid_stand_still
-    config: config/humanoid_stand_still.yaml
+    config: examples/humanoid_stand_still.yaml
+  - name: exp_humanoid_mixed
+    config: examples/humanoid_mixed.yaml

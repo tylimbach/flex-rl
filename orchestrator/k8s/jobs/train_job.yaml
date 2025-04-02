@@ -8,6 +8,7 @@ spec:
       containers:
       - name: {{ container_name }}
         image: {{ docker_image }}
+        imagePullPolicy: IfNotPresent
         command: {{ command }}
         args: {{ args }}
         volumeMounts:
@@ -15,12 +16,13 @@ spec:
           mountPath: /workspace
         resources:
           limits:
-            nvidia.com/gpu: {{ gpu }}
+            # NOTE:GPU sharing enabled
+            # nvidia.com/gpu: {{ gpu }}
             cpu: {{ cpu }}
             memory: {{ memory }}
       restartPolicy: Never
       volumes:
       - name: workspace
         persistentVolumeClaim:
-          claimName: workspace-pvc
+          claimName: flex-rl-pvc
   backoffLimit: 1
