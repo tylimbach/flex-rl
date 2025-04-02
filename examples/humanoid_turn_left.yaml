@@ -2,7 +2,7 @@
 env_id: "Humanoid-v5"
 
 policy: "MlpLstmPolicy"
-n_envs: 2
+n_envs: 1
 total_timesteps: 10000000
 learning_rate: 0.0003
 batch_size: 4096

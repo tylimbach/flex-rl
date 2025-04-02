@@ -6,8 +6,8 @@ minikube-up() {
 	minikube start \
 		--driver=docker \
 		--container-runtime=docker \
-		--cpus=8 \
-		--memory=16g \
+		--cpus=6 \
+		--memory=12g \
 		--gpus all
 
 	kubectl config use-context minikube

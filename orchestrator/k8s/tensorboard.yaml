@@ -15,9 +15,10 @@ spec:
       containers:
       - name: tensorboard
         image: tensorflow/tensorflow:2.19.0
+        imagePullPolicy: IfNotPresent
         args:
           - "tensorboard"
-          - "--logdir=/workspace"
+          - "--logdir=/workspace/runs"
           - "--port=6006"
         ports:
         - containerPort: 6006
