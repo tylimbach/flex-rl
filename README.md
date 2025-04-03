@@ -119,7 +119,7 @@ make minikube-up
 make pvc-up
 ```
 
-### 2. Build and Load Runtime Image
+### Build and Load Runtime Image
 
 ```bash
 make build-runtime
