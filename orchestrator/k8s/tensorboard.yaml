@@ -18,7 +18,7 @@ spec:
         imagePullPolicy: IfNotPresent
         args:
           - "tensorboard"
-          - "--logdir=/workspace/runs"
+          - "--logdir=/workspace"
           - "--port=6006"
         ports:
         - containerPort: 6006

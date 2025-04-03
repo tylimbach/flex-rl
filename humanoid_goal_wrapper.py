@@ -1,5 +1,4 @@
 import gymnasium as gym
-from typing import Optional
 import numpy as np
 from goal import Goal, GoalSampler
 

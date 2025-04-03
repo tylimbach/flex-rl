@@ -14,11 +14,14 @@ spec:
         volumeMounts:
         - name: workspace
           mountPath: /workspace
+        env:
+        - name: WORKSPACE_DIR
+          value: /workspace
         resources:
           limits:
             # NOTE:GPU sharing enabled
             # nvidia.com/gpu: {{ gpu }}
-            cpu: {{ cpu }}
+            # cpu: {{ cpu }}
             memory: {{ memory }}
       restartPolicy: Never
       volumes:

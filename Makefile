@@ -4,6 +4,7 @@ build-dev:
 	DOCKER_BUILDKIT=1 docker build -t flex-rl:latest -f docker/Dockerfile
 
 build-runtime:
+	# eval(minikube docker-env)
 	DOCKER_BUILDKIT=1 docker build -t flex-rl-runtime:latest -f docker/runtime.Dockerfile .
 
 registry-up:
@@ -70,8 +71,23 @@ tensorboard-up:
 	kubectl apply -f orchestrator/k8s/tensorboard.yaml
 	@echo "⏳ Waiting for TensorBoard Pod to become Ready..."
 	@kubectl wait --for=condition=ready pod -l app=tensorboard --timeout=300s
-	@echo "🌐 TensorBoard is ready. Access at http://localhost:6006"
+	@POD=$$(kubectl get pod -l app=tensorboard -o jsonpath="{.items[0].metadata.name}"); \
+	echo "🌐 TensorBoard Pod $$POD is ready. Waiting for server to start..."; \
+	until kubectl logs $$POD | grep -q "Press CTRL+C to quit"; do \
+		echo "Waiting for TensorBoard log output..."; \
+		sleep 1; \
+	done; \
+	echo "✅ TensorBoard is up. Starting port-forward..."; \
 	kubectl port-forward svc/tensorboard 6006:6006
+
+tensorboard-restart:
+	make tensorboard-down
+	sleep 3
+	make tensorboard-up
+
+tensorboard-down:
+	kubectl delete svc tensorboard || true
+	kubectl delete deployment tensorboard || true
 
 tensorboard-restart:
 	make tensorboard-down

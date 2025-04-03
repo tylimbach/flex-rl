@@ -20,6 +20,7 @@ def make_env(env_id, goal_sampler: GoalSampler):
 	def _init():
 		env = Monitor(HumanoidGoalWrapper(gym.make(env_id), goal_sampler))
 		return env
+
 	return _init
 
 
@@ -57,7 +58,7 @@ def update_snapshot_log(save_dir, step, eval_reward=None, interrupt=False):
 	entry = {
 		"step": int(step),
 		"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-		"interrupt": bool(interrupt)
+		"interrupt": bool(interrupt),
 	}
 	if eval_reward is not None:
 		entry["eval_reward"] = float(eval_reward)
@@ -91,7 +92,7 @@ class SnapshotAndEvalCallback(BaseCallback):
 		self.env = env
 		self.save_dir = save_dir
 		self.eval_episodes = eval_episodes
-		self.best_reward = float('-inf')
+		self.best_reward = float("-inf")
 
 	def _on_step(self):
 		if self.n_calls % self.save_freq == 0:
@@ -108,8 +109,16 @@ class SnapshotAndEvalCallback(BaseCallback):
 				self.best_reward = mean_reward
 				best_dir = os.path.join(self.save_dir, "best")
 				os.makedirs(best_dir, exist_ok=True)
-				save_full_snapshot(self.model, self.env, best_dir, self.num_timesteps, eval_reward=mean_reward)
-				print(f"New best model saved at step {self.num_timesteps} with reward {mean_reward:.2f}")
+				save_full_snapshot(
+					self.model,
+					self.env,
+					best_dir,
+					self.num_timesteps,
+					eval_reward=mean_reward,
+				)
+				print(
+					f"New best model saved at step {self.num_timesteps} with reward {mean_reward:.2f}"
+				)
 
 		return True
 
@@ -154,16 +163,27 @@ def print_summary(base_dir):
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--name", type=str, required=True, help="Experiment name")
-	parser.add_argument("--config", type=str, default="config/humanoid_default.yaml", help="Path to config file (YAML)")
-	parser.add_argument("--model", type=str, help="Optional snapshot folder to resume training")
-	parser.add_argument("--lineage", type=str, help="Optional: Print lineage of an experiment path and exit")
+	parser.add_argument(
+		"--config",
+		type=str,
+		default="config/humanoid_default.yaml",
+		help="Path to config file (YAML)",
+	)
+	parser.add_argument(
+		"--model", type=str, help="Optional snapshot folder to resume training"
+	)
+	parser.add_argument(
+		"--lineage",
+		type=str,
+		help="Optional: Print lineage of an experiment path and exit",
+	)
 	args = parser.parse_args()
 
 	if args.lineage:
 		print_lineage(args.lineage)
 		exit(0)
 
-	exp_base = f"./workspace/{args.name}"
+	exp_base = f"{os.getenv('WORKSPACE_DIR', './workspace')}/{args.name}"
 	BASE_DIR = get_unique_experiment_dir(exp_base)
 	CHECKPOINT_DIR = f"{BASE_DIR}/checkpoints"
 	LOG_DIR = f"{BASE_DIR}/log"
@@ -186,28 +206,39 @@ if __name__ == "__main__":
 	train_goals = load_goals_from_config(cfg.get("sampling_goals"))
 
 	goal_sampler = GoalSampler(
-		strategy=cfg.get("sampling_strategy", "balanced"),
-		goals=train_goals
+		strategy=cfg.get("sampling_strategy", "balanced"), goals=train_goals
 	)
 	goal_reward_scale = cfg.get("goal_reward_scale")
 
 	if args.model:
 		print(f"Loading snapshot from {args.model}")
-		dummy_env = SubprocVecEnv([make_env(cfg["env_id"], goal_sampler) for _ in range(N_ENVS)])
+		dummy_env = SubprocVecEnv(
+			[make_env(cfg["env_id"], goal_sampler) for _ in range(N_ENVS)]
+		)
 		normalize_path = os.path.join(args.model, "vecnormalize.pkl")
 		env = VecNormalize.load(normalize_path, dummy_env)
 		env.training = True
 		env.norm_reward = True
 		parent_path = args.model
-		resumed_at = int(os.path.basename(os.path.normpath(args.model))) if os.path.basename(os.path.normpath(args.model)).isdigit() else None
+		resumed_at = (
+			int(os.path.basename(os.path.normpath(args.model)))
+			if os.path.basename(os.path.normpath(args.model)).isdigit()
+			else None
+		)
 
-		model = RecurrentPPO.load(os.path.join(args.model, "model.zip"), env=env, device="cuda")
+		model = RecurrentPPO.load(
+			os.path.join(args.model, "model.zip"), env=env, device="cuda"
+		)
 		model.tensorboard_log = LOG_DIR
 		print(f"✅ Loaded model and VecNormalize from {args.model}")
 	else:
 		print("Starting fresh training run...")
-		env = SubprocVecEnv([make_env(cfg["env_id"], goal_sampler) for _ in range(N_ENVS)])
-		env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=cfg["clip_obs"])
+		env = SubprocVecEnv(
+			[make_env(cfg["env_id"], goal_sampler) for _ in range(N_ENVS)]
+		)
+		env = VecNormalize(
+			env, norm_obs=True, norm_reward=True, clip_obs=cfg["clip_obs"]
+		)
 		normalize_path = None
 		parent_path = None
 		resumed_at = None
@@ -217,7 +248,7 @@ if __name__ == "__main__":
 			env,
 			policy_kwargs=dict(
 				net_arch=dict(pi=cfg["policy_net"], vf=cfg["value_net"]),
-				activation_fn=torch.nn.ReLU
+				activation_fn=torch.nn.ReLU,
 			),
 			learning_rate=cfg["learning_rate"],
 			n_steps=cfg["n_steps"],
@@ -229,28 +260,34 @@ if __name__ == "__main__":
 			clip_range=cfg["clip_range"],
 			verbose=1,
 			device="cuda",
-			tensorboard_log=LOG_DIR
+			tensorboard_log=LOG_DIR,
 		)
 
 	save_metadata(BASE_DIR, cfg, parent=parent_path, resumed_at=resumed_at)
 	print(f"📝 Metadata saved at {BASE_DIR}/metadata.yaml")
 
-	eval_env = DummyVecEnv([
-		make_env(cfg["env_id"], GoalSampler(strategy="balanced", goals=[goal]))
-		for goal in train_goals
-	])
+	eval_env = DummyVecEnv(
+		[
+			make_env(cfg["env_id"], GoalSampler(strategy="balanced", goals=[goal]))
+			for goal in train_goals
+		]
+	)
 
 	if normalize_path:
 		eval_env = VecNormalize.load(normalize_path, eval_env)
 	else:
-		eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=True, clip_obs=cfg["clip_obs"])
+		eval_env = VecNormalize(
+			eval_env, norm_obs=True, norm_reward=True, clip_obs=cfg["clip_obs"]
+		)
 
 	eval_env.training = False
 	eval_env.norm_reward = False
 
 	eval_episodes = cfg["eval_episodes"]
 	eval_freq = cfg["eval_freq"] // N_ENVS
-	eval_cb = SnapshotAndEvalCallback(model, eval_freq, env, CHECKPOINT_DIR, eval_episodes=eval_episodes)
+	eval_cb = SnapshotAndEvalCallback(
+		model, eval_freq, env, CHECKPOINT_DIR, eval_episodes=eval_episodes
+	)
 
 	try:
 		model.learn(total_timesteps=cfg["total_timesteps"], callback=[eval_cb])

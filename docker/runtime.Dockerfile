@@ -21,7 +21,7 @@ COPY docker/runtime-requirements.txt /tmp/requirements.txt
 
 RUN --mount=type=cache,target=/root/.cache/pip \
 	python -m pip install --upgrade pip==23.3.1 --no-cache-dir && \
-	pip install --no-cache-dir -r /tmp/requirements.base.txt
+	pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY . /project
 
