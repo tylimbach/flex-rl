@@ -1,0 +1,12 @@
+sampling_strategy: balanced
+sampling_goals:
+  - name: walk_backward
+    weight: 500.0
+  - name: walk_forward
+    weight: 500.0
+  - name: turn_left
+    weight: 500.0
+  - name: turn_right
+    weight: 500.0
+  - name: stand_still
+    weight: 500.0

@@ -1,6 +1,4 @@
-# yaml-language-server: $schema=../config.schema.json
 env_id: "Humanoid-v5"
-
 policy: "MlpLstmPolicy"
 n_envs: 1
 total_timesteps: 10000000
@@ -15,11 +13,4 @@ clip_range: 0.2
 policy_net: [256, 256]
 value_net: [256, 256]
 clip_obs: 10.0
-
-snapshot_freq: 100000
-eval_freq: 100000
-eval_episodes: 20
-
-sampling_goals:
-  - name: "walk_backward"
-    weight: 500.0
+device: cuda

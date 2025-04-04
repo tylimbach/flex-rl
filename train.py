@@ -2,6 +2,7 @@ import argparse
 import datetime
 import os
 import shutil
+import logging
 
 import gymnasium as gym
 import torch
@@ -14,6 +15,9 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNorm
 from humanoid_goal_wrapper import HumanoidGoalWrapper
 from goal import GoalSampler, load_goals_from_config
 from evaluate_snapshot import evaluate_snapshot
+
+import hydra
+from omegaconf import DictConfig, OmegaConf
 
 
 def make_env(env_id, goal_sampler: GoalSampler):
@@ -160,140 +164,104 @@ def print_summary(base_dir):
 	print(f"Full Snapshot Log: {snapshot_log}")
 
 
-if __name__ == "__main__":
-	parser = argparse.ArgumentParser()
-	parser.add_argument("--name", type=str, required=True, help="Experiment name")
-	parser.add_argument(
-		"--config",
-		type=str,
-		default="config/humanoid_default.yaml",
-		help="Path to config file (YAML)",
-	)
-	parser.add_argument(
-		"--model", type=str, help="Optional snapshot folder to resume training"
-	)
-	parser.add_argument(
-		"--lineage",
-		type=str,
-		help="Optional: Print lineage of an experiment path and exit",
-	)
-	args = parser.parse_args()
-
-	if args.lineage:
-		print_lineage(args.lineage)
-		exit(0)
-
-	exp_base = f"{os.getenv('WORKSPACE_DIR', './workspace')}/{args.name}"
+@hydra.main(config_path="configs", config_name="config", version_base="1.3")
+def main(cfg: DictConfig):
+	exp_name = cfg.get("experiment_name") or "default_exp"
+	workspace = cfg.workspace.base_dir
+	exp_base = os.path.join(workspace, exp_name)
 	BASE_DIR = get_unique_experiment_dir(exp_base)
-	CHECKPOINT_DIR = f"{BASE_DIR}/checkpoints"
-	LOG_DIR = f"{BASE_DIR}/log"
-	EXPERIMENT_CONFIG = f"{BASE_DIR}/config.yaml"
+	CHECKPOINT_DIR = os.path.join(BASE_DIR, "checkpoints")
+	LOG_DIR = os.path.join(BASE_DIR, "log")
 
 	os.makedirs(BASE_DIR, exist_ok=True)
 	os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 	os.makedirs(LOG_DIR, exist_ok=True)
 
-	if not os.path.exists(args.config):
-		raise FileNotFoundError(f"Config file {args.config} not found")
+	# Save resolved config for reproducibility
+	with open(os.path.join(BASE_DIR, "config.yaml"), "w") as f:
+		OmegaConf.save(config=cfg, f=f.name)
+	log.info(f"🔧 Config:\n{OmegaConf.to_yaml(cfg)}")
 
-	shutil.copy(args.config, EXPERIMENT_CONFIG)
-	print(f"✅ Copied config to {EXPERIMENT_CONFIG}")
+	N_ENVS = cfg.training.n_envs
+	train_goals = load_goals_from_config(cfg.env.sampling_goals)
+	goal_sampler = GoalSampler(strategy=cfg.env.sampling_strategy, goals=train_goals)
 
-	with open(EXPERIMENT_CONFIG) as f:
-		cfg = yaml.safe_load(f)
+	normalize_path = None
+	parent_path = None
+	resumed_at = None
 
-	N_ENVS = cfg["n_envs"]
-	train_goals = load_goals_from_config(cfg.get("sampling_goals"))
-
-	goal_sampler = GoalSampler(
-		strategy=cfg.get("sampling_strategy", "balanced"), goals=train_goals
-	)
-	goal_reward_scale = cfg.get("goal_reward_scale")
-
-	if args.model:
-		print(f"Loading snapshot from {args.model}")
-		dummy_env = SubprocVecEnv(
-			[make_env(cfg["env_id"], goal_sampler) for _ in range(N_ENVS)]
-		)
-		normalize_path = os.path.join(args.model, "vecnormalize.pkl")
+	if cfg.get("model"):
+		print(f"📦 Loading snapshot from: {cfg.model}")
+		dummy_env = SubprocVecEnv([make_env(cfg.env.env_id, goal_sampler) for _ in range(N_ENVS)])
+		normalize_path = os.path.join(cfg.model, "vecnormalize.pkl")
 		env = VecNormalize.load(normalize_path, dummy_env)
 		env.training = True
 		env.norm_reward = True
-		parent_path = args.model
-		resumed_at = (
-			int(os.path.basename(os.path.normpath(args.model)))
-			if os.path.basename(os.path.normpath(args.model)).isdigit()
-			else None
-		)
+		parent_path = cfg.model
+		try:
+			resumed_at = int(os.path.basename(os.path.normpath(cfg.model)))
+		except ValueError:
+			pass
 
-		model = RecurrentPPO.load(
-			os.path.join(args.model, "model.zip"), env=env, device="cuda"
-		)
+		model = RecurrentPPO.load(os.path.join(cfg.model, "model.zip"), env=env, device="cuda")
 		model.tensorboard_log = LOG_DIR
-		print(f"✅ Loaded model and VecNormalize from {args.model}")
 	else:
-		print("Starting fresh training run...")
-		env = SubprocVecEnv(
-			[make_env(cfg["env_id"], goal_sampler) for _ in range(N_ENVS)]
-		)
-		env = VecNormalize(
-			env, norm_obs=True, norm_reward=True, clip_obs=cfg["clip_obs"]
-		)
-		normalize_path = None
-		parent_path = None
-		resumed_at = None
+		print("🚀 Starting new training run...")
+		env = SubprocVecEnv([make_env(cfg.env.env_id, goal_sampler) for _ in range(N_ENVS)])
+		env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=cfg.training.clip_obs)
 
 		model = RecurrentPPO(
-			cfg["policy"],
+			cfg.training.policy,
 			env,
 			policy_kwargs=dict(
-				net_arch=dict(pi=cfg["policy_net"], vf=cfg["value_net"]),
+				net_arch=dict(pi=cfg.training.policy_net, vf=cfg.training.value_net),
 				activation_fn=torch.nn.ReLU,
 			),
-			learning_rate=cfg["learning_rate"],
-			n_steps=cfg["n_steps"],
-			batch_size=cfg["batch_size"],
-			n_epochs=cfg["n_epochs"],
-			gamma=cfg["gamma"],
-			gae_lambda=cfg["gae_lambda"],
-			ent_coef=cfg["ent_coef"],
-			clip_range=cfg["clip_range"],
+			learning_rate=cfg.training.learning_rate,
+			n_steps=cfg.training.n_steps,
+			batch_size=cfg.training.batch_size,
+			n_epochs=cfg.training.n_epochs,
+			gamma=cfg.training.gamma,
+			gae_lambda=cfg.training.gae_lambda,
+			ent_coef=cfg.training.ent_coef,
+			clip_range=cfg.training.clip_range,
 			verbose=1,
 			device="cuda",
 			tensorboard_log=LOG_DIR,
 		)
 
-	save_metadata(BASE_DIR, cfg, parent=parent_path, resumed_at=resumed_at)
+	save_metadata(BASE_DIR, OmegaConf.to_container(cfg, resolve=True), parent=parent_path, resumed_at=resumed_at)
 	print(f"📝 Metadata saved at {BASE_DIR}/metadata.yaml")
 
-	eval_env = DummyVecEnv(
-		[
-			make_env(cfg["env_id"], GoalSampler(strategy="balanced", goals=[goal]))
-			for goal in train_goals
-		]
-	)
+	eval_env = DummyVecEnv([
+		make_env(cfg.env.env_id, GoalSampler(strategy="balanced", goals=[goal])) for goal in train_goals
+	])
 
 	if normalize_path:
 		eval_env = VecNormalize.load(normalize_path, eval_env)
 	else:
-		eval_env = VecNormalize(
-			eval_env, norm_obs=True, norm_reward=True, clip_obs=cfg["clip_obs"]
-		)
+		eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=True, clip_obs=cfg.training.clip_obs)
 
 	eval_env.training = False
 	eval_env.norm_reward = False
 
-	eval_episodes = cfg["eval_episodes"]
-	eval_freq = cfg["eval_freq"] // N_ENVS
 	eval_cb = SnapshotAndEvalCallback(
-		model, eval_freq, env, CHECKPOINT_DIR, eval_episodes=eval_episodes
+		model=model,
+		save_freq=cfg.training.eval_freq // N_ENVS,
+		env=env,
+		save_dir=CHECKPOINT_DIR,
+		eval_episodes=cfg.training.eval_episodes
 	)
 
 	try:
-		model.learn(total_timesteps=cfg["total_timesteps"], callback=[eval_cb])
+		model.learn(total_timesteps=cfg.training.total_timesteps, callback=[eval_cb])
 	except KeyboardInterrupt:
 		print("Training interrupted. Saving snapshot...")
 		snap_dir = os.path.join(CHECKPOINT_DIR, "manual_interrupt")
 		save_full_snapshot(model, env, snap_dir, model.num_timesteps, interrupt=True)
 	finally:
 		print_summary(BASE_DIR)
+
+
+if __name__ == "__main__":
+	main()

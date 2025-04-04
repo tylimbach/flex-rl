@@ -4,5 +4,3 @@ rules:
   comments: disable
   trailing-spaces: disable
 
-ignore: |
-  orchestrator/k8s/**/*.yaml

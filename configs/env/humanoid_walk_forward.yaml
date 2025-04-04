@@ -1,0 +1,5 @@
+env_id: Humanoid-v5
+sampling_strategy: single
+sampling_goals:
+  - name: walk_forward
+    weight: 500.0

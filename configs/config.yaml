@@ -1,0 +1,8 @@
+defaults:
+  - env: humanoid
+  - training: default
+  - workspace: default
+  - _self_
+
+experiment_name: null
+model: null
