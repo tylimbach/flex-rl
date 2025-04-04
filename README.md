@@ -9,7 +9,7 @@ This repository demonstrates infrastructure and experimental design workflows co
 ## ⚙️ Technologies Used
 
 - [Hydra](https://github.com/facebookresearch/hydra): Configuration management and multi-run orchestration
-- [MuJoCo](https://mujoco.readthedocs.io/en/latest/): Physics simulation engine via Gymnasium
+- [MuJoCo](https://mujoco.org/): Physics simulation engine via Gymnasium
 - [Stable Baselines3](https://github.com/DLR-RM/stable-baselines3): PPO + RL algorithms
 - [Kubernetes](https://kubernetes.io/): Job scheduling and orchestration
 - [Docker](https://www.docker.com/): Runtime containerization
