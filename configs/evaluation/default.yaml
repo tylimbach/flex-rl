@@ -1,3 +1,2 @@
-snapshot_freq: 100000
 eval_freq: 100000
-eval_episodes: 20
+eval_episodes: 15

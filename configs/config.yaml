@@ -1,7 +1,8 @@
 defaults:
-  - env: humanoid
+  - env: humanoid_walk_forward
   - training: default
-  - workspace: default
+  - evaluation: default
+  - runtime: default
   - _self_
 
 experiment_name: null

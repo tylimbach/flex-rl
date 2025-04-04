@@ -1,118 +1,78 @@
 import os
 import argparse
+import logging
 import numpy as np
-import gymnasium as gym
-from moviepy import ImageSequenceClip
+import yaml
 from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-from stable_baselines3.common.monitor import Monitor
-import yaml
-from goal import GoalSampler, load_goals_from_config
-from humanoid_goal_wrapper import HumanoidGoalWrapper
+from envs import GoalSampler, load_goals_from_config
+from train_utils.env_factory import make_env
+from train_utils.media import save_media
 
-
-def make_env(env_id, goal_sampler, render_mode):
-	def _init():
-		env = Monitor(HumanoidGoalWrapper(gym.make(env_id, render_mode=render_mode), goal_sampler=goal_sampler))
-		return env
-	return _init
-
-
-def save_media(frames, path, fps=30):
-	if path.endswith(".mp4"):
-		clip = ImageSequenceClip(frames, fps=fps)
-		clip.write_videofile(path, fps=fps, codec="libx264")
-	elif path.endswith(".gif"):
-		clip = ImageSequenceClip(frames, fps=fps)
-		clip.write_gif(path, fps=fps)
-	else:
-		raise ValueError("Output must be .mp4 or .gif")
-
-	print(f"🎥 Saved media to {path}")
-
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--model", type=str, required=True, help="Path to model snapshot")
-	parser.add_argument("--video", type=str, help="Optional: save an episode as video (.mp4)")
-	parser.add_argument("--gif", type=str, help="Optional: save an episode as GIF (.gif)")
+	parser.add_argument("--model", type=str, required=True)
+	parser.add_argument("--video", type=str, help="Save episode to .mp4")
+	parser.add_argument("--gif", type=str, help="Save episode to .gif")
 	args = parser.parse_args()
 
 	model_path = os.path.join(args.model, "model.zip")
 	vecnorm_path = os.path.join(args.model, "vecnormalize.pkl")
 	config_path = os.path.join(args.model, "metadata.yaml")
 
-	print(f"🔍 Loading model from: {model_path}")
-	print(f"🔍 Loading normalization stats from: {vecnorm_path}")
-	print(f"🔍 Loading config from: {config_path}")
+	log.info(f"🔍 Loading model from: {model_path}")
+	log.info(f"🔍 Loading normalization from: {vecnorm_path}")
+	log.info(f"🔍 Loading config from: {config_path}")
 
 	with open(config_path) as f:
-		metadata = yaml.safe_load(f)
-	cfg = metadata["config"]
-	goals = load_goals_from_config(cfg.get("sampling_goals"))
+		cfg = yaml.safe_load(f)["config"]
+		goals = load_goals_from_config(cfg.get("sampling_goals"))
 
-	goal_sampler = GoalSampler(
-		strategy="balanced",
-		goals=goals
-	)
-
-	render_mode = "rgb_array" if args.video else "human"
+	goal_sampler = GoalSampler(strategy="balanced", goals=goals)
+	render_mode = "rgb_array" if args.video or args.gif else "human"
 	env = DummyVecEnv([make_env(cfg["env_id"], goal_sampler, render_mode)])
 	env = VecNormalize.load(vecnorm_path, env)
 	env.training = False
 	env.norm_reward = False
 
 	model = RecurrentPPO.load(model_path, env=env, device="cuda")
-
 	obs = env.reset()
+
 	if args.video or args.gif:
 		output_path = args.video or args.gif
-		print(f"🎥 Recording one episode to {output_path}")
+		log.info(f"🎥 Recording to {output_path}")
 		lstm_states = None
 		episode_starts = np.ones((env.num_envs,), dtype=bool)
-		frames = []
-		total_reward = 0
-		done = False
-		info = [{}]
+		frames, total_reward, done, info = [], 0, False, [{}]
 
 		while not done:
-			action, lstm_states = model.predict(
-				np.array(obs),
-				state=lstm_states,
-				episode_start=episode_starts,
-				deterministic=True
-			)
+			action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
 			obs, reward, done, info = env.step(action)
 			total_reward += reward[0]
 			episode_starts = done
-			frame = env.envs[0].render()
-			frames.append(frame)
+			frames.append(env.envs[0].render())
 
-		print(f"🎯 Episode reward: {total_reward:.2f} | Goal: {info[0].get('goal')}")
+		log.info(f"🎯 Episode reward: {total_reward:.2f} | Goal: {info[0].get('goal')}")
 		save_media(frames, output_path)
 	else:
-		print("🎮 Starting live interactive play...")
+		log.info("🎮 Starting live play session...")
 		while True:
 			try:
 				lstm_states = None
 				episode_starts = np.ones((env.num_envs,), dtype=bool)
-				total_reward = 0
-				done = False
-				info = [{}]
+				total_reward, done, info = 0, False, [{}]
 
 				while not done:
-					action, lstm_states = model.predict(
-						np.array(obs),
-						state=lstm_states,
-						episode_start=episode_starts,
-						deterministic=True
-					)
+					action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
 					obs, reward, done, info = env.step(action)
 					total_reward += reward[0]
 					env.render()
 					episode_starts = done
 
-				print(f"🎯 Episode reward: {total_reward:.2f} | Goal: {info[0].get('goal')}")
+				log.info(f"🎯 Episode reward: {total_reward:.2f} | Goal: {info[0].get('goal')}")
 			except Exception:
 				env.reset()
 				env.close()

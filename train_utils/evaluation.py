@@ -1,22 +1,17 @@
 import os
 import yaml
 import numpy as np
-import gymnasium as gym
+import logging
+
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-from stable_baselines3.common.monitor import Monitor
 from sb3_contrib import RecurrentPPO
-from goal import GoalSampler, load_goals_from_config
-from humanoid_goal_wrapper import HumanoidGoalWrapper
 
+from envs import GoalSampler, load_goals_from_config
+from train_utils.env_factory import make_env
 
-def make_env(env_id, goal_sampler: GoalSampler):
-	def _init():
-		env = Monitor(HumanoidGoalWrapper(gym.make(env_id), goal_sampler))
-		return env
-	return _init
+log = logging.getLogger(__name__)
 
-
-def evaluate_snapshot(snapshot_path, eval_episodes=10):
+def evaluate_snapshot(snapshot_path: str, eval_episodes: int = 10) -> dict:
 	model_path = os.path.join(snapshot_path, "model.zip")
 	vecnorm_path = os.path.join(snapshot_path, "vecnormalize.pkl")
 	metadata_path = os.path.join(snapshot_path, "metadata.yaml")
@@ -26,11 +21,10 @@ def evaluate_snapshot(snapshot_path, eval_episodes=10):
 
 	with open(metadata_path) as f:
 		metadata = yaml.safe_load(f)
-		cfg = metadata["config"]
+		cfg = metadata["config"]["env"]
 		goals = load_goals_from_config(cfg.get("sampling_goals"))
 
 	results = {}
-
 
 	for goal in goals:
 		sampler = GoalSampler.single(goal)
@@ -65,16 +59,6 @@ def evaluate_snapshot(snapshot_path, eval_episodes=10):
 
 		mean_reward = np.mean(all_rewards)
 		results[goal] = mean_reward
-		print(f"✅ Goal '{goal}': Mean reward over {eval_episodes} episodes: {mean_reward:.2f}")
+		log.info(f"✅ Goal '{goal}': Mean reward over {eval_episodes} episodes: {mean_reward:.2f}")
 
 	return results
-
-
-if __name__ == "__main__":
-	import argparse
-	parser = argparse.ArgumentParser()
-	parser.add_argument("--snapshot", type=str, required=True, help="Path to snapshot folder")
-	parser.add_argument("--episodes", type=int, default=10, help="Number of eval episodes per goal")
-	args = parser.parse_args()
-
-	evaluate_snapshot(args.snapshot, args.episodes)

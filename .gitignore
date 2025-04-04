@@ -11,3 +11,4 @@ logdir/
 __pycache__/
 
 workspace/
+outputs/

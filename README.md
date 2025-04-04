@@ -1,186 +1,146 @@
-# flex-rl — Scalable RL Training & Orchestration Pipeline
+# flex-rl — Scalable RL Training & Orchestration Infrastructure
 
-**flex-rl** is a reinforcement learning research pipeline focused on scalable, reproducible infrastructure for goal-conditioned and offline RL training. It is built to support flexible, large-scale experimentation on MuJoCo Gym environments, with an emphasis on robust infrastructure and workflow automation.
+**flex-rl** is a reinforcement learning infrastructure project focused on scalable experimentation, reproducibility, and modular design. It supports goal-conditioned and offline RL pipelines on MuJoCo Gym environments and showcases best practices for production-grade training orchestration.
 
-The project is an ongoing personal effort to explore RL techniques and build production-grade orchestration systems used in modern RL research environments.
-
----
-
-## 🎯 Project Purpose
-
-The primary goals of this project are to:
-
-- Deepen understanding of reinforcement learning and ML infrastructure
-- Experiment with modern multi-skill RL agent training
-- Develop scalable, reproducible infrastructure for large-scale experiments
-
-The system is structured to support future expansion into a more general-purpose RL training platform.
+This repository demonstrates infrastructure and experimental design workflows commonly found in modern RL research labs and industry environments. The system is designed to support cloud-based scale while remaining lightweight for local development.
 
 ---
 
-## 🔥 Key Features
+## ⚙️ Technologies Used
 
-✅ End-to-end RL training pipeline  
-✅ Local development support with Docker  
-✅ Kubernetes-native orchestration with support for experiment sweeps  
-✅ Persistent experiment tracking & reproducibility  
-✅ Seamless local → cloud migration path (Minikube → GKE)  
-✅ Flexible design for custom environments, Gym extensions, or hardware integration
-
----
-
-## 🧩 Research & Experimentation Phases
-
-The current research workflow follows three phases:
-
-### Phase 1 — Multi-Skill Pretraining
-
-Pretraining MuJoCo Humanoid agents on core locomotion skills (e.g., walking, turning) using on-policy PPO.
-
-### Phase 2 — Goal-Conditioned Fine-Tuning & Offline RL
-
-Fine-tuning pretrained agents with explicit goal embeddings and large-scale offline datasets.  
-Includes support for Behavior Cloning and Decision Transformer-inspired methods.
-
-### Phase 3 — Instruction-Conditioned Behavior
-
-Incorporating lightweight language models to condition agent behavior on natural language instructions.
+- [Hydra](https://github.com/facebookresearch/hydra): Configuration management and multi-run orchestration
+- [MuJoCo](https://mujoco.readthedocs.io/en/latest/): Physics simulation engine via Gymnasium
+- [Stable Baselines3](https://github.com/DLR-RM/stable-baselines3): PPO + RL algorithms
+- [Kubernetes](https://kubernetes.io/): Job scheduling and orchestration
+- [Docker](https://www.docker.com/): Runtime containerization
+- [Terraform](https://www.terraform.io/): Infrastructure as code for cloud deployment
+- [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine): Cloud-native scaling backend
+- [MoviePy](https://zulko.github.io/moviepy/): Media rendering for rollout visualization
 
 ---
 
-## 🏗️ Infrastructure Overview
+## 🧱 System Highlights
 
-The infrastructure is designed for both local development and cloud-scale orchestration:
-
-| Environment         | Use Case                                   |
-|--------------------|--------------------------------------------|
-| Local (Docker)    | Development & debugging                     |
-| Local (Minikube)  | Testing Kubernetes manifests and pipelines  |
-| Cloud (GKE, Terraform) | Scalable training & large-scale experiments *(In progress)* |
-
-The local setup mirrors the production cluster environment to enable seamless transitions between development and large-scale training.
+- 📦 End-to-end RL training pipeline (on-policy PPO, goal-conditioned)
+- 🖥️ Local development with Docker or bare-metal GPU
+- ☁️ Kubernetes-native orchestration (Minikube or GKE)
+- 📁 Persistent snapshotting and experiment metadata
+- 🔄 Hydra-driven sweeps and experiment templating
+- 🧩 Modular design: custom environments, Gym wrappers, goal samplers
 
 ---
 
-## 📄 Requirements
+## 🧪 Current Experimental Phases
 
-- Python 3.10
-- Docker
-- NVIDIA GPU + drivers (for local GPU training)
-- Minikube & kubectl (for local cluster workflow)
+**Phase 1 — Multi-Skill Pretraining**  
+Train MuJoCo Humanoid agents on basic locomotion (walk, turn, stand).
+
+**Phase 2 — Goal-Conditioned Fine-Tuning**  
+Extend base agents to condition on discrete or continuous goal states. 
+
+**Phase 3 — Offline + Instruction-Conditioned RL**  
+Integrate offline datasets and instruction embeddings (in progress).
 
 ---
 
-## ⚙️Setup
+## 🧰 Infrastructure Modes
 
-Clone the repository:
+| Mode             | Description                                     |
+|------------------|-------------------------------------------------|
+| Local (Bare/Docker) | Fast iteration and debugging                  |
+| Minikube (Local K8s) | Kubernetes workflow testing                   |
+| GKE (Cloud)      | Cluster-scale orchestration (planned)          |
+
+---
+
+## 📦 Requirements
+
+- Python 3.10+
+- NVIDIA GPU (for training)
+- Docker (for containerized workflows)
+- Minikube + kubectl (for local Kubernetes jobs)
+
+---
+
+### 🔧 Hydra-Based Configuration
+
+All experiments are configured using [Hydra](https://github.com/facebookresearch/hydra). The system supports:
+- Modular, hierarchical YAML configs (`env/`, `training/`, `run/`)
+- Command-line overrides (e.g. `python train.py training.learning_rate=0.0001`)
+- Sweep support and dynamic config interpolation
+
+See the `configs/` folder for examples.
+
+> I am working on migrating the old K8s sweeps to Hydra configs
+
+## 🚀 Quick Start: Local Training
 
 ```bash
 git clone https://github.com/tylimbach/flex-rl.git
 cd flex-rl
-```
-
-Create and activate Python environment:
-
-```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-(Optional) Install Minikube:
-
-Refer to: https://minikube.sigs.k8s.io/docs/start/
-
----
-
-## 🚀 Local Development Workflow
-
-For small-scale, local training runs:
-
-Example:
-
+Run a training job:
 ```bash
-python train.py --name test_run --config examples/humanoid_walk_forward.yaml
+python train.py experiment_name=test-run
 ```
 
-Training artifacts will be saved under `./workspace/`.
+Artifacts are saved in `workspace/` with metadata, checkpoints, and config.
 
 ---
 
-## ☁️ Kubernetes Workflow (Minikube)
+## ☁️ Kubernetes Workflow (via Minikube)
 
-> ```Makefile``` provides quick-start commands but you'll likely want to customize arguments or config yaml for personal resource allocation.
+> `Makefile` provides shortcuts for common cluster operations
 
-### Start Local Minikube Cluster
-
+### Start Cluster
 ```bash
 make minikube-up
 make pvc-up
 ```
 
-### Build and Load Runtime Image
-
+### Build Runtime Image
 ```bash
 make build-runtime
 minikube cache add flex-rl-runtime:latest
 ```
 
-### Submit Training Sweep
-
+### Submit a Sweep
 ```bash
 python orchestrator/scripts/submit_sweep.py --sweep examples/humanoid_sweep.yaml
 ```
 
-This will dynamically submit a Kubernetes Job based on the sweep configuration.
-
-### Monitor Progress
-
+### Monitor
 ```bash
 kubectl get jobs
 kubectl logs job/<job-name>
-```
-
-Optional: View TensorBoard
-
-```bash
 make tensorboard-up
 ```
 
 ### Cleanup
-
 ```bash
 make jobs-clean
 make pvc-down
 make minikube-down
-make tensorboard-down
 ```
 
 ---
 
-## 🚀 Cloud Workflow (Coming Soon)
+## 📌 Roadmap
 
-The infrastructure is designed to scale to Google Kubernetes Engine (GKE) using Terraform for reproducible infrastructure deployment.
-
-Future steps will include:
-
-- GKE cluster setup via Terraform
-- Cloud-based GPU scaling & automated experiment orchestration
-- Experiment artifact storage in GCS
-
-## 🌱 Future Roadmap
-
-- 🔨 Support for GKE + Terraform-managed infrastructure
-- 🔨 Cloud-based GPU scaling & automated experiment orchestration
-- 🚧 MLflow / W&B integration for experiment tracking GUI
-- 🚧 Dynamic sweep configuration templates
-- 🚧 Optional Airflow/Kubeflow pipeline orchestration
-- 🚧 Offline RL dataset packaging
+- [ ] GKE deployment via Terraform
+- [ ] MLflow or Weights & Biases integration
+- [ ] Offline RL dataset tooling
+- [ ] Instruction-conditioned rollouts
+- [ ] Multi-agent support (stretch goal)
 
 ---
 
-## 💡 Project Intent
+## 📚 Project Status
 
-This repository is primarily a personal research project and infrastructure showcase. It is not currently designed as a plug-and-play RL product but is built to demonstrate scalable, production-grade ML infrastructure practices.
+This repository is a research and infrastructure showcase — built to reflect the architecture and workflows of scalable ML systems. It is not a plug-and-play RL library, but a starting point for custom pipelines, research prototypes, and educational study.
 
-Future development may expand the system into a more general-purpose, modular RL training platform if there is community interest or demand.
+Feedback and collaboration welcome.

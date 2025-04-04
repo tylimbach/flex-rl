@@ -1,3 +1,4 @@
+env_id: Humanoid-v5
 sampling_strategy: balanced
 sampling_goals:
   - name: walk_backward

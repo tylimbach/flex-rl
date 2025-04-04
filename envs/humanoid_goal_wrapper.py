@@ -1,6 +1,5 @@
 import gymnasium as gym
-import numpy as np
-from goal import Goal, GoalSampler
+from .goal import Goal, GoalSampler
 
 
 class HumanoidGoalWrapper(gym.Wrapper):
