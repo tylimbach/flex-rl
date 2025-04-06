@@ -5,6 +5,7 @@ from .summary import print_summary
 from .callbacks import SnapshotAndEvalCallback
 from .evaluation import evaluate_snapshot
 from .media import save_media
+from .early_stopping import EarlyStopper
 
 __all__ = [
 	"make_env",
@@ -15,4 +16,5 @@ __all__ = [
 	"update_snapshot_log",
 	"print_summary",
 	"SnapshotAndEvalCallback",
+	"EarlyStopper"
 ]

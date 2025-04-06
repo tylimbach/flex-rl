@@ -8,6 +8,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from envs import GoalSampler, load_goals_from_config
 from train_utils.env_factory import make_env
 from train_utils.media import save_media
+from omegaconf import OmegaConf
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -28,12 +29,12 @@ if __name__ == "__main__":
 	log.info(f"🔍 Loading config from: {config_path}")
 
 	with open(config_path) as f:
-		cfg = yaml.safe_load(f)["config"]
-		goals = load_goals_from_config(cfg.get("sampling_goals"))
+		cfg = OmegaConf.create(yaml.safe_load(f)["config"])
+		goals = load_goals_from_config(cfg.env.sampling_goals)
 
 	goal_sampler = GoalSampler(strategy="balanced", goals=goals)
 	render_mode = "rgb_array" if args.video or args.gif else "human"
-	env = DummyVecEnv([make_env(cfg["env_id"], goal_sampler, render_mode)])
+	env = DummyVecEnv([make_env(cfg.env.env_id, goal_sampler, render_mode)])
 	env = VecNormalize.load(vecnorm_path, env)
 	env.training = False
 	env.norm_reward = False

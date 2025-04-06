@@ -1,2 +1,2 @@
 eval_freq: 100000
-eval_episodes: 15
+eval_episodes: 32

@@ -1,6 +1,6 @@
-# flex-rl — Scalable RL Training & Orchestration Infrastructure
+# flex-rl — Scalable RL Training Framework
 
-**flex-rl** is a reinforcement learning infrastructure project focused on scalable experimentation, reproducibility, and modular design. It supports goal-conditioned and offline RL pipelines on MuJoCo Gym environments and showcases best practices for production-grade training orchestration.
+**flex-rl** is a reinforcement learning project focused on scalable experimentation, reproducibility, and modular design. It supports goal-conditioned and offline RL pipelines on MuJoCo Gym environments with a flexible sweep submission system for parallel training runs.
 
 This repository demonstrates infrastructure and experimental design workflows commonly found in modern RL research labs and industry environments. The system is designed to support cloud-based scale while remaining lightweight for local development.
 
@@ -8,7 +8,7 @@ This repository demonstrates infrastructure and experimental design workflows co
 
 ## ⚙️ Technologies Used
 
-- [Hydra](https://github.com/facebookresearch/hydra): Configuration management and multi-run orchestration
+- [Hydra](https://github.com/facebookresearch/hydra): Hierarchical configuration management
 - [MuJoCo](https://mujoco.org/): Physics simulation engine via Gymnasium
 - [Stable Baselines3](https://github.com/DLR-RM/stable-baselines3): PPO + RL algorithms
 - [Kubernetes](https://kubernetes.io/): Job scheduling and orchestration

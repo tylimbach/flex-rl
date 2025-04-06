@@ -1,0 +1,5 @@
+_target_: hydra_plugins.hydra_submitit_launcher.submitit_launcher.LocalLauncher
+timeout_min: 180
+cpus_per_task: 4  # Limit CPU usage
+gpus_per_node: 1  # Optional; still only one GPU
+mem_gb: 8

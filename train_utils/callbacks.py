@@ -1,11 +1,26 @@
 import os
+import logging
 from stable_baselines3.common.callbacks import BaseCallback
+
+from train_utils import early_stopping
+from train_utils.early_stopping import EarlyStopper
 from .snapshot import save_full_snapshot
 from .evaluation import evaluate_snapshot
+from typing import Optional
 
+log = logging.getLogger(__name__)
 
 class SnapshotAndEvalCallback(BaseCallback):
-	def __init__(self, model, save_freq, env, save_dir, eval_episodes=10, verbose=0):
+	def __init__(
+			self,
+			model,
+			save_freq,
+			env,
+			save_dir,
+			eval_envs=1,
+			eval_episodes=10,
+			verbose=0,
+			early_stopper: Optional[EarlyStopper]=None):
 		super().__init__(verbose)
 		self.model = model
 		self.save_freq = save_freq
@@ -13,6 +28,8 @@ class SnapshotAndEvalCallback(BaseCallback):
 		self.save_dir = save_dir
 		self.eval_episodes = eval_episodes
 		self.best_reward = float("-inf")
+		self.eval_envs = eval_envs
+		self.early_stopper = early_stopper
 
 	def _on_step(self):
 		if self.n_calls % self.save_freq == 0:
@@ -23,7 +40,7 @@ class SnapshotAndEvalCallback(BaseCallback):
 
 			results = evaluate_snapshot(snap_dir, eval_episodes=self.eval_episodes)
 			mean_reward = sum(results.values()) / len(results)
-			print(f"Eval result at {self.num_timesteps}: {mean_reward:.2f}")
+			log.info(f"Eval result at {self.num_timesteps}: {mean_reward:.2f}")
 
 			if mean_reward > self.best_reward:
 				self.best_reward = mean_reward
@@ -36,8 +53,10 @@ class SnapshotAndEvalCallback(BaseCallback):
 					self.num_timesteps,
 					eval_reward=mean_reward,
 				)
-				print(
-					f"New best model saved at step {self.num_timesteps} with reward {mean_reward:.2f}"
-				)
+				log.info(f"New best model saved at step {self.num_timesteps} with reward {mean_reward:.2f}")
+
+			if self.early_stopper and self.early_stopper.should_stop(mean_reward):
+				log.info("🛑 Early stopping triggered from callback.")
+				return False
 
 		return True

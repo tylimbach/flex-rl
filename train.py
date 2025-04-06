@@ -5,7 +5,7 @@ from omegaconf import DictConfig, OmegaConf
 import torch
 
 from sb3_contrib import RecurrentPPO
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 from envs import GoalSampler, load_goals_from_config
 from train_utils.env_factory import make_env, get_unique_experiment_dir
@@ -13,6 +13,7 @@ from train_utils.snapshot import save_full_snapshot
 from train_utils.metadata import save_metadata
 from train_utils.summary import print_summary
 from train_utils.callbacks import SnapshotAndEvalCallback
+from train_utils import EarlyStopper
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -23,17 +24,22 @@ def main(cfg: DictConfig):
 	exp_name = cfg.get("experiment_name") or "default_exp"
 	workspace = os.path.abspath(cfg.runtime.workspace_dir)
 	exp_base = os.path.join(workspace, exp_name)
-	BASE_DIR = get_unique_experiment_dir(exp_base)
-	CHECKPOINT_DIR = os.path.join(BASE_DIR, "checkpoints")
-	LOG_DIR = os.path.join(BASE_DIR, "log")
-
-	os.makedirs(BASE_DIR, exist_ok=True)
-	os.makedirs(CHECKPOINT_DIR, exist_ok=True)
-	os.makedirs(LOG_DIR, exist_ok=True)
-
-	with open(os.path.join(BASE_DIR, "config.yaml"), "w") as f:
+	workspace_dir = get_unique_experiment_dir(exp_base)
+	with open(os.path.join(workspace_dir, "config.yaml"), "w") as f:
 		OmegaConf.save(config=cfg, f=f.name)
 	log.info(f"✅ Saved resolved config to {f.name}")
+
+	train(cfg, workspace_dir)
+
+
+def train(cfg: DictConfig, workspace_dir):
+	checkpoint_dir = os.path.join(workspace_dir, "checkpoints")
+	log_dir = os.path.join(workspace_dir, "log")
+
+	os.makedirs(workspace_dir, exist_ok=True)
+	os.makedirs(checkpoint_dir, exist_ok=True)
+	os.makedirs(log_dir, exist_ok=True)
+
 
 	N_ENVS = cfg.training.n_envs
 	train_goals = load_goals_from_config(cfg.env.sampling_goals)
@@ -45,7 +51,7 @@ def main(cfg: DictConfig):
 
 	if cfg.get("model"):
 		log.info(f"📦 Loading snapshot from: {cfg.model}")
-		dummy_env = SubprocVecEnv([make_env(cfg.env.env_id, goal_sampler) for _ in range(N_ENVS)])
+		dummy_env = DummyVecEnv([make_env(cfg.env.env_id, goal_sampler) for _ in range(N_ENVS)])
 		normalize_path = os.path.join(cfg.model, "vecnormalize.pkl")
 		env = VecNormalize.load(normalize_path, dummy_env)
 		env.training = True
@@ -57,10 +63,10 @@ def main(cfg: DictConfig):
 			pass
 
 		model = RecurrentPPO.load(os.path.join(cfg.model, "model.zip"), env=env, device="cuda")
-		model.tensorboard_log = LOG_DIR
+		model.tensorboard_log = log_dir
 	else:
 		log.info("🚀 Starting new training run...")
-		env = SubprocVecEnv([make_env(cfg.env.env_id, goal_sampler) for _ in range(N_ENVS)])
+		env = DummyVecEnv([make_env(cfg.env.env_id, goal_sampler) for _ in range(N_ENVS)])
 		env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=cfg.training.clip_obs)
 
 		model = RecurrentPPO(
@@ -78,13 +84,13 @@ def main(cfg: DictConfig):
 			gae_lambda=cfg.training.gae_lambda,
 			ent_coef=cfg.training.ent_coef,
 			clip_range=cfg.training.clip_range,
-			verbose=1,
+			verbose=2,
 			device=cfg.training.device,
-			tensorboard_log=LOG_DIR,
+			tensorboard_log=log_dir,
 		)
 
-	save_metadata(BASE_DIR, OmegaConf.to_container(cfg, resolve=True), parent=parent_path, resumed_at=resumed_at)
-	log.info(f"📝 Metadata saved at {BASE_DIR}/metadata.yaml")
+	save_metadata(workspace_dir, OmegaConf.to_container(cfg, resolve=True), parent=parent_path, resumed_at=resumed_at)
+	log.info(f"📝 Metadata saved at {workspace_dir}/metadata.yaml")
 
 	eval_env = DummyVecEnv([
 		make_env(cfg.env.env_id, GoalSampler(strategy="balanced", goals=[goal])) for goal in train_goals
@@ -98,22 +104,25 @@ def main(cfg: DictConfig):
 	eval_env.training = False
 	eval_env.norm_reward = False
 
+	early_stopper = EarlyStopper(cfg.training.early_stopper)
 	eval_cb = SnapshotAndEvalCallback(
 		model=model,
 		save_freq=cfg.evaluation.eval_freq // N_ENVS,
 		env=env,
-		save_dir=CHECKPOINT_DIR,
-		eval_episodes=cfg.evaluation.eval_episodes
+		eval_envs=N_ENVS,
+		save_dir=checkpoint_dir,
+		eval_episodes=cfg.evaluation.eval_episodes,
+		early_stopper=early_stopper
 	)
 
 	try:
 		model.learn(total_timesteps=cfg.training.total_timesteps, callback=[eval_cb])
 	except KeyboardInterrupt:
 		log.warning("Training interrupted. Saving snapshot...")
-		snap_dir = os.path.join(CHECKPOINT_DIR, "manual_interrupt")
+		snap_dir = os.path.join(checkpoint_dir, "manual_interrupt")
 		save_full_snapshot(model, env, snap_dir, model.num_timesteps, interrupt=True)
 	finally:
-		print_summary(BASE_DIR)
+		print_summary(workspace_dir)
 
 
 if __name__ == "__main__":

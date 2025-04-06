@@ -1,0 +1,8 @@
+# @package hydra.launcher
+defaults:
+  - joblib
+
+n_jobs: -1
+backend: multiprocessing
+pre_dispatch: "2*n_jobs"  # Controls how many tasks get dispatched during parallelization
+batch_size: "auto"  # Number of tasks to dispatch per iteration
