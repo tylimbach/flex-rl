@@ -1,5 +1,6 @@
-from moviepy import ImageSequenceClip
 import logging
+
+from moviepy import ImageSequenceClip
 
 log = logging.getLogger(__name__)
 

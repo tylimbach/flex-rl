@@ -6,6 +6,7 @@
 *.fatbin
 *.venv
 *.nsys-rep
+*.env
 
 logdir/
 __pycache__/

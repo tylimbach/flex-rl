@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: llm-inference
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: llm-infer
+          image: gcr.io/YOUR_PROJECT_ID/llm-infer:latest
+          command: ["python", "llm/infer.py"]
+          env:
+            - name: HUGGINGFACE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-secret
+                  key: token
+          resources:
+            limits:
+              nvidia.com/gpu: 2
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+  backoffLimit: 3

@@ -1,146 +1,73 @@
-# flex-rl — Scalable RL Training Framework
+# flex-rl — RL & LLM Agent Pipelines for Scalable Experimentation
 
-**flex-rl** is a reinforcement learning project focused on scalable experimentation, reproducibility, and modular design. It supports goal-conditioned and offline RL pipelines on MuJoCo Gym environments with a flexible sweep submission system for parallel training runs.
-
-This repository demonstrates infrastructure and experimental design workflows commonly found in modern RL research labs and industry environments. The system is designed to support cloud-based scale while remaining lightweight for local development.
-
----
-
-## ⚙️ Technologies Used
-
-- [Hydra](https://github.com/facebookresearch/hydra): Hierarchical configuration management
-- [MuJoCo](https://mujoco.org/): Physics simulation engine via Gymnasium
-- [Stable Baselines3](https://github.com/DLR-RM/stable-baselines3): PPO + RL algorithms
-- [Kubernetes](https://kubernetes.io/): Job scheduling and orchestration
-- [Docker](https://www.docker.com/): Runtime containerization
-- [Terraform](https://www.terraform.io/): Infrastructure as code for cloud deployment
-- [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine): Cloud-native scaling backend
-- [MoviePy](https://zulko.github.io/moviepy/): Media rendering for rollout visualization
-
----
-
-## 🧱 System Highlights
-
-- 📦 End-to-end RL training pipeline (on-policy PPO, goal-conditioned)
-- 🖥️ Local development with Docker or bare-metal GPU
-- ☁️ Kubernetes-native orchestration (Minikube or GKE)
-- 📁 Persistent snapshotting and experiment metadata
-- 🔄 Hydra-driven sweeps and experiment templating
-- 🧩 Modular design: custom environments, Gym wrappers, goal samplers
-
----
-
-## 🧪 Current Experimental Phases
-
-**Phase 1 — Multi-Skill Pretraining**  
-Train MuJoCo Humanoid agents on basic locomotion (walk, turn, stand).
-
-**Phase 2 — Goal-Conditioned Fine-Tuning**  
-Extend base agents to condition on discrete or continuous goal states. 
-
-**Phase 3 — Offline + Instruction-Conditioned RL**  
-Integrate offline datasets and instruction embeddings (in progress).
-
----
-
-## 🧰 Infrastructure Modes
-
-| Mode             | Description                                     |
-|------------------|-------------------------------------------------|
-| Local (Bare/Docker) | Fast iteration and debugging                  |
-| Minikube (Local K8s) | Kubernetes workflow testing                   |
-| GKE (Cloud)      | Cluster-scale orchestration (planned)          |
-
----
-
-## 📦 Requirements
-
-- Python 3.10+
-- NVIDIA GPU (for training)
-- Docker (for containerized workflows)
-- Minikube + kubectl (for local Kubernetes jobs)
-
----
-
-### 🔧 Hydra-Based Configuration
-
-All experiments are configured using [Hydra](https://github.com/facebookresearch/hydra). The system supports:
-- Modular, hierarchical YAML configs (`env/`, `training/`, `run/`)
-- Command-line overrides (e.g. `python train.py training.learning_rate=0.0001`)
-- Sweep support and dynamic config interpolation
-
-See the `configs/` folder for examples.
-
-> I am working on migrating the old K8s sweeps to Hydra configs
-
-## 🚀 Quick Start: Local Training
+**flex-rl** is a personal research project and infrastructure showcase for reinforcement learning and language model integration. It enables scalable RL experimentation via containerized training pipelines and supports local or Kubernetes-based multi-GPU inference of open-weight LLMs.
 
 ```bash
-git clone https://github.com/tylimbach/flex-rl.git
-cd flex-rl
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+[ Environment ]
+        ↓
+[ Observation Encoding: "Agent: (15, 30), Ball: (20, 25)..." ]
+        ↓
+[ LLM Prompt: "Choose the best action ..." ] ←────────┐
+        ↓                                             │
+[ LLM Output: "move_right" ]                          │
+        ↓                                             │
+[ Agent Policy Execution ]                            │
+                                                      │
+[ External Instruction: "Avoid the ball!" ] ──────────┘
 ```
 
-Run a training job:
-```bash
-python train.py experiment_name=test-run
-```
+> The core architecture explores using natural language and LLMs as a central decision maker in a multimodal agent loop. By injecting instructions mid-run, agents can adapt behavior without retraining. Traditional RL is leveraged to train a small set of learned motor skills, which the language model composes to translate high-level tasks into actionable motions, resulting in the emergence of complex behaviors.
 
-Artifacts are saved in `workspace/` with metadata, checkpoints, and config.
+The system is built with modularity and reproducibility in mind, designed to support:
+- Flexible on-policy agent training (PPO)
+- Goal-conditioned or instruction-guided environments
+- Hydra-driven experiment sweeps
+- LLM-driven behavior adaptation
+- Cloud-native inference infrastructure (GKE, torchrun)
 
 ---
 
-## ☁️ Kubernetes Workflow (via Minikube)
+## 🔧 Technologies Used
 
-> `Makefile` provides shortcuts for common cluster operations
-
-### Start Cluster
-```bash
-make minikube-up
-make pvc-up
-```
-
-### Build Runtime Image
-```bash
-make build-runtime
-minikube cache add flex-rl-runtime:latest
-```
-
-### Submit a Sweep
-```bash
-python orchestrator/scripts/submit_sweep.py --sweep examples/humanoid_sweep.yaml
-```
-
-### Monitor
-```bash
-kubectl get jobs
-kubectl logs job/<job-name>
-make tensorboard-up
-```
-
-### Cleanup
-```bash
-make jobs-clean
-make pvc-down
-make minikube-down
-```
+- **RL & Simulation**: MuJoCo, Gymnasium, Stable Baselines3
+- **Infra**: Docker, Kubernetes, torchrun, Terraform, GKE
+- **LLMs**: HuggingFace Transformers, Qwen, Mistral, LLaMA 4
+- **Config**: Hydra, Omegaconf
 
 ---
 
-## 📌 Roadmap
+## 🧱 Architecture Overview
 
-- [ ] GKE deployment via Terraform
-- [ ] MLflow or Weights & Biases integration
-- [ ] Offline RL dataset tooling
-- [ ] Instruction-conditioned rollouts
-- [ ] Multi-agent support (stretch goal)
+- `rl/`: PPO agents, custom envs, Gym wrappers
+- `llm/`: Inference pipelines and configs
+- `docker/`: Runtime images for training & inference
+- `k8s/`: Kubernetes job templates + Make targets
+- `workspace/`: Training logs, rollouts, and metadata
 
 ---
 
-## 📚 Project Status
+## 🧪 Experimental Phases
 
-This repository is a research and infrastructure showcase — built to reflect the architecture and workflows of scalable ML systems. It is not a plug-and-play RL library, but a starting point for custom pipelines, research prototypes, and educational study.
+- **Skill Pretraining** — locomotion PPO training in MuJoCo
+- **Goal-Conditioned Fine-Tuning** — via Gym wrappers + config
+- **Instruction-Driven Control** — LLM-generated goal inputs (in progress)
+- **Offline RL + Datasets** — embedding conditioning (planned)
 
-Feedback and collaboration welcome.
+---
+
+## ☁️ Infrastructure Modes
+
+| Mode               | Purpose                                 |
+|--------------------|------------------------------------------|
+| Local              | Training, debugging, rollouts            |
+| Docker             | Containerized reproducibility            |
+| Minikube           | Local Kubernetes job testing             |
+| GKE                | Cloud inference + multi-GPU deployment  |
+
+---
+
+## 📚 Project Scope
+
+This is an independent research prototype. While not designed for broad reuse, it reflects real-world ML infrastructure with RL-focused design choices, end-to-end orchestration, and custom LLM-agent integration experiments.
+
+Engineers and researchers are encouraged to explore the RL and infra patterns within. Contributions welcome.

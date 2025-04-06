@@ -2,8 +2,7 @@ import os
 import logging
 from stable_baselines3.common.callbacks import BaseCallback
 
-from train_utils import early_stopping
-from train_utils.early_stopping import EarlyStopper
+from .early_stopping import EarlyStopper
 from .snapshot import save_full_snapshot
 from .evaluation import evaluate_snapshot
 from typing import Optional

@@ -1,6 +1,7 @@
-import os
-import yaml
 import datetime
+import os
+
+import yaml
 
 
 def save_metadata(path, cfg, parent=None, resumed_at=None):

@@ -1,7 +1,8 @@
+import datetime
 import os
 import shutil
+
 import yaml
-import datetime
 
 
 def update_snapshot_log(save_dir, step, eval_reward=None, interrupt=False):

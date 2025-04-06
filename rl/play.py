@@ -1,14 +1,15 @@
-import os
 import argparse
 import logging
+import os
+
 import numpy as np
 import yaml
+from omegaconf import OmegaConf
 from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-from envs import GoalSampler, load_goals_from_config
-from train_utils.env_factory import make_env
-from train_utils.media import save_media
-from omegaconf import OmegaConf
+
+from rl.envs import GoalSampler, load_goals_from_config
+from rl.train_utils import make_env, save_media
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

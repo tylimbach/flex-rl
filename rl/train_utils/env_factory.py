@@ -1,6 +1,6 @@
 import os
 from stable_baselines3.common.monitor import Monitor
-from envs.humanoid_goal_wrapper import HumanoidGoalWrapper
+from rl.envs.humanoid_goal_wrapper import HumanoidGoalWrapper
 import gymnasium as gym
 
 

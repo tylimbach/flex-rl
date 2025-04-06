@@ -89,11 +89,24 @@ tensorboard-down:
 	kubectl delete svc tensorboard || true
 	kubectl delete deployment tensorboard || true
 
-tensorboard-restart:
-	make tensorboard-down
-	sleep 3
-	make tensorboard-up
+gcp-create-clusters:
+	gcloud container clusters create llm-cluster \
+		--zone=us-central1-a \
+		--num-nodes=2 \
+		--machine-type=n1-standard-8 \
+		--accelerator type=nvidia-tesla-t4,count=1 \
+		--image-type=UBUNTU_CONTAINERD \
+		--scopes=https://www.googleapis.com/auth/cloud-platform \
+		--enable-ip-alias \
+		--no-enable-basic-auth \
+		--metadata disable-legacy-endpoints=true \
+		--enable-autoupgrade
 
-tensorboard-down:
-	kubectl delete svc tensorboard || true
-	kubectl delete deployment tensorboard || true
+gcp-create-registry:
+	gcloud artifacts repositories create llm-infer-repo \
+	--repository-format=docker \
+	--location=us-central1
+
+gcp-push-image:
+	docker tag llm-infer:latest us-central1-docker.pkg.dev/YOUR_PROJECT_ID/llm-infer-repo/llm-infer:latest
+	docker push us-central1-docker.pkg.dev/YOUR_PROJECT_ID/llm-infer-repo/llm-infer:latest

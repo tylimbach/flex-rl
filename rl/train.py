@@ -1,19 +1,22 @@
-import os
 import logging
-import hydra
-from omegaconf import DictConfig, OmegaConf
-import torch
+import os
 
+import hydra
+import torch
+from omegaconf import DictConfig, OmegaConf
 from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-from envs import GoalSampler, load_goals_from_config
-from train_utils.env_factory import make_env, get_unique_experiment_dir
-from train_utils.snapshot import save_full_snapshot
-from train_utils.metadata import save_metadata
-from train_utils.summary import print_summary
-from train_utils.callbacks import SnapshotAndEvalCallback
-from train_utils import EarlyStopper
+from rl.envs import GoalSampler, load_goals_from_config
+from rl.train_utils import (
+	EarlyStopper,
+	SnapshotAndEvalCallback,
+	get_unique_experiment_dir,
+	make_env,
+	print_summary,
+	save_full_snapshot,
+	save_metadata,
+)
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +28,7 @@ def main(cfg: DictConfig):
 	workspace = os.path.abspath(cfg.runtime.workspace_dir)
 	exp_base = os.path.join(workspace, exp_name)
 	workspace_dir = get_unique_experiment_dir(exp_base)
+	os.makedirs(workspace_dir, exist_ok=True)
 	with open(os.path.join(workspace_dir, "config.yaml"), "w") as f:
 		OmegaConf.save(config=cfg, f=f.name)
 	log.info(f"✅ Saved resolved config to {f.name}")
@@ -39,7 +43,6 @@ def train(cfg: DictConfig, workspace_dir):
 	os.makedirs(workspace_dir, exist_ok=True)
 	os.makedirs(checkpoint_dir, exist_ok=True)
 	os.makedirs(log_dir, exist_ok=True)
-
 
 	N_ENVS = cfg.training.n_envs
 	train_goals = load_goals_from_config(cfg.env.sampling_goals)

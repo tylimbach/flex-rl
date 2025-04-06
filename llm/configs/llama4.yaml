@@ -1,0 +1,10 @@
+model_id: meta-llama/Llama-4-Scout-17B-16E-Instruct
+attn_implementation: flex_attention
+torch_dtype: bfloat16
+prompt: >
+  Respond with one action.
+  Available actions: [move_up, move_right, move_left, move_down].
+  Coords are in (x, y), where up = +y down = -y left = -x right = +x.
+  Agent coords: 15, 15.
+  Target coords: 30, 25.
+  Which action brings the agent closest to the target?

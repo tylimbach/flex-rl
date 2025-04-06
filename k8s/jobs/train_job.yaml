@@ -8,7 +8,6 @@ spec:
       containers:
       - name: {{ container_name }}
         image: {{ docker_image }}
-        imagePullPolicy: IfNotPresent
         command: {{ command }}
         args: {{ args }}
         volumeMounts:
@@ -19,10 +18,10 @@ spec:
           value: /workspace
         resources:
           limits:
-            # NOTE:GPU sharing enabled
-            # nvidia.com/gpu: {{ gpu }}
-            # cpu: {{ cpu }}
+            nvidia.com/gpu: {{ gpu }}
+            cpu: {{ cpu }}
             memory: {{ memory }}
+        imagePullPolicy: IfNotPresent
       restartPolicy: Never
       volumes:
       - name: workspace

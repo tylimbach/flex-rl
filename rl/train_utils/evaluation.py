@@ -7,8 +7,8 @@ import math
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from sb3_contrib import RecurrentPPO
 
-from envs import GoalSampler, load_goals_from_config
-from train_utils import make_env
+from rl.envs import GoalSampler, load_goals_from_config
+from .env_factory import make_env
 
 log = logging.getLogger(__name__)
 
