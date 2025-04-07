@@ -1,0 +1,12 @@
+defaults:
+  - train
+  - _self_
+
+hydra:
+  mode: MULTIRUN
+  sweep:
+    subdir: ${hydra.job.override_dirname}
+  job:
+    chdir: True
+
+experiment_name: humanoid_sweep_${env}

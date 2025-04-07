@@ -1,8 +1,8 @@
-# flex-rl — Modular RL + LLM System for Embodied Agents
+# flex-rl — Modular RL + LLM for Embodied Agents
 
 flex-rl is a personal research project and infrastructure showcase for embodied agent simulation and orchestration. The goal is to build highly adaptive agents that learn a small set of reusable motor skills via reinforcement learning (RL), then use a large language model (LLM) to dynamically select or modify these skills in response to real-time environment feedback and external instructions.
 
-The system supports scalable experimentation across both local and cloud infrastructure—from bare-metal on-policy PPO training to multi-GPU LLM inference using tensor parallelism on Kubernetes.
+The system supports scalable experimentation across both local and cloud infrastructure: from bare-metal on-policy PPO training to multi-GPU LLM inference using tensor parallelism on Kubernetes.
 
 ```bash
 [ Environment ]
@@ -49,7 +49,7 @@ The system supports scalable experimentation across both local and cloud infrast
 | Local              | Training, debugging, rollouts            |
 | Docker             | Containerized reproducibility            |
 | Minikube           | Local Kubernetes job testing             |
-| GKE                | Cloud inference + multi-GPU deployment  |
+| Cloud                | Cloud inference + multi-GPU deployment  |
 
 ---
 
