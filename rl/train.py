@@ -21,7 +21,7 @@ from rl.train_utils import (
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-@hydra.main(config_path="configs", config_name="config", version_base="1.3")
+@hydra.main(config_path="configs", config_name="train", version_base="1.3")
 def main(cfg: DictConfig):
 	log.info(f"Resolved config:\n{OmegaConf.to_yaml(cfg)}")
 	exp_name = cfg.get("experiment_name") or "default_exp"

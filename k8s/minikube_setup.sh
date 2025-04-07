@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# === Minikube Setup & Management for flex-rl ===
-
 minikube-up() {
 	minikube start \
 		--driver=docker \
@@ -19,10 +17,6 @@ minikube-down() {
 	echo "🗑️ Minikube cluster deleted."
 }
 
-sweep-dev() {
-	python orchestrator/scripts/submit_sweep.py --sweep examples/humanoid_sweep.yaml
-}
-
 monitor-jobs() {
 	kubectl get jobs
 	kubectl get pods
@@ -38,23 +32,12 @@ pvc-down() {
 	echo "🗑️ PVC deleted."
 }
 
-# === Usage ===
-# ./minikube_setup.sh up            -> start cluster
-# ./minikube_setup.sh down          -> delete cluster
-# ./minikube_setup.sh sweep-dev     -> submit sweep
-# ./minikube_setup.sh monitor       -> monitor jobs
-# ./minikube_setup.sh pvc-up        -> create pvc
-# ./minikube_setup.sh pvc-down      -> delete pvc
-
 case "$1" in
 	up)
 		minikube-up
 		;;
 	down)
 		minikube-down
-		;;
-	sweep-dev)
-		sweep-dev
 		;;
 	monitor)
 		monitor-jobs

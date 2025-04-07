@@ -4,7 +4,7 @@ torch_dtype: bfloat16
 prompt: >
   Respond with one action.
   Available actions: [move_up, move_right, move_left, move_down].
-  Coords are in (x, y), where up = +y down = -y left = -x right = +x.
-  Agent coords: 35, 15.
-  Target coords: 30, 25.
+  Coords are in (x,y), where up = +y down = -y left = -x right = +x.
+  Agent coords: (35,15).
+  Target coords: (30,25).
   Which action should the agent choose to move toward the target?

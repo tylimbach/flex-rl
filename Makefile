@@ -33,36 +33,26 @@ shell:
 train-test:
 	python train.py --name test --config examples/humanoid_walk_forward.yaml
 
-render-grid:
-	docker run --rm -it \
-		--gpus all \
-		-v $(PWD):/project \
-		flex-rl:latest \
-		python orchestrator/scripts/render_grid.py --runs_dir workspace/ --output workspace/grid.gif
-
 minikube-up:
-	./orchestrator/k8s/minikube_setup.sh up
+	./k8s/minikube_setup.sh up
 
 minikube-down:
-	./orchestrator/k8s/minikube_setup.sh down
-
-sweep-dev:
-	./orchestrator/k8s/minikube_setup.sh sweep-dev
+	./k8s/minikube_setup.sh down
 
 monitor-jobs:
-	./orchestrator/k8s/minikube_setup.sh monitor
+	./k8s/minikube_setup.sh monitor
 
 pvc-up:
-	./orchestrator/k8s/minikube_setup.sh pvc-up
+	./k8s/minikube_setup.sh pvc-up
 
 pvc-down:
-	./orchestrator/k8s/minikube_setup.sh pvc-down
+	./k8s/minikube_setup.sh pvc-down
 
 pvc-clean:
 	kubectl delete jobs --all
 	kubectl delete deployment tensorboard || true
 	kubectl delete svc tensorboard || true
-	./orchestrator/k8s/minikube_setup.sh pvc-down
+	./k8s/minikube_setup.sh pvc-down
 
 jobs-clean:
 	kubectl delete jobs --all
@@ -89,7 +79,7 @@ tensorboard-down:
 	kubectl delete svc tensorboard || true
 	kubectl delete deployment tensorboard || true
 
-gcp-create-clusters:
+gcp-create-cluster-t4:
 	gcloud container clusters create llm-cluster \
 		--zone=us-central1-a \
 		--num-nodes=2 \
@@ -102,6 +92,19 @@ gcp-create-clusters:
 		--metadata disable-legacy-endpoints=true \
 		--enable-autoupgrade
 
+gcp-create-dev-compute-vm:
+	gcloud compute instances create llm-dev \
+		--zone=us-west1-b \
+		--machine-type=n1-standard-8 \
+		--accelerator type=nvidia-tesla-t4,count=1 \
+		--maintenance-policy TERMINATE \
+		--preemptible \
+		--image-family pytorch-latest-gpu \
+		--image-project deeplearning-platform-release \
+		--boot-disk-size=100GB \
+		--metadata "install-nvidia-driver=True" \
+		--scopes=cloud-platform
+
 gcp-create-registry:
 	gcloud artifacts repositories create llm-infer-repo \
 	--repository-format=docker \
@@ -110,3 +113,44 @@ gcp-create-registry:
 gcp-push-image:
 	docker tag llm-infer:latest us-central1-docker.pkg.dev/YOUR_PROJECT_ID/llm-infer-repo/llm-infer:latest
 	docker push us-central1-docker.pkg.dev/YOUR_PROJECT_ID/llm-infer-repo/llm-infer:latest
+
+# === INFRA ===
+.PHONY: infra-dev-up infra-dev-down infra-gke-up infra-gke-down infra-apply infra-destroy
+
+infra-dev-up:
+	cd infra/terraform/dev-t4-vm && terraform init && terraform apply -auto-approve
+
+infra-dev-down:
+	cd infra/terraform/dev-t4-vm && terraform destroy -auto-approve
+
+infra-gke-up:
+	cd infra/terraform/gke-cluster && terraform init && terraform apply -auto-approve
+
+infra-gke-down:
+	cd infra/terraform/gke-cluster && terraform destroy -auto-approve
+
+# === HELM ===
+.PHONY: deploy-llm deploy-rl uninstall-llm uninstall-rl
+
+deploy-llm:
+	helm upgrade --install llm-infer infra/helm/llm-infer \
+		--values infra/helm/llm-infer/values.yaml
+
+deploy-rl:
+	helm upgrade --install rl-infer infra/helm/rl-infer \
+		--values infra/helm/rl-infer/values.yaml
+
+uninstall-llm:
+	helm uninstall llm-infer || true
+
+uninstall-rl:
+	helm uninstall rl-infer || true
+
+# === KUBECTL SHORTCUTS ===
+.PHONY: logs-llm logs-rl
+
+logs-llm:
+	kubectl logs deployment/llm-infer -c llm-infer --tail=100 -f
+
+logs-rl:
+	kubectl logs deployment/rl-infer -c rl-infer --tail=100 -f

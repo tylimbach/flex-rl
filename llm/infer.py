@@ -3,6 +3,9 @@ import os
 
 import hydra
 import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
+
 from huggingface_hub import login
 from omegaconf import DictConfig
 from transformers import (
@@ -61,15 +64,28 @@ def generate(prompt: str, tokenizer, model):
 	log.info(response)
 
 
-@hydra.main(config_path="configs", config_name="qwen-1.5", version_base="1.3")
-def main(cfg: DictConfig):
+def setup_distributed(rank, world_size):
+	os.environ["RANK"] = str(rank)
+	os.environ["WORLD_SIZE"] = str(world_size)
+	dist.init_process_group("nccl", rank=rank, world_size=world_size)
+
+
+def run(rank, world_size, cfg):
+	setup_distributed(rank, world_size)
 	tokenizer, model = load_model(
 		model_id=cfg.model_id,
 		attn_impl=cfg.attn_implementation,
 		torch_dtype=cfg.torch_dtype,
 	)
-	log.info("Model loaded")
-	generate(cfg.prompt, tokenizer, model)
+	log.info(f"Model loaded on rank {rank}")
+	if rank == 0:
+		generate(cfg.prompt, tokenizer, model)
+
+
+@hydra.main(config_path="configs", config_name="qwen-1.5", version_base="1.3")
+def main(cfg: DictConfig):
+	world_size = torch.cuda.device_count()
+	mp.spawn(run, args=(world_size, cfg), nprocs=world_size)
 
 
 if __name__ == "__main__":

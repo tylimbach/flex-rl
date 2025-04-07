@@ -1,15 +1,57 @@
+# Secret
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+
+# Virtual envs
+.venv/
+.env/
+venv/
+env/
+
+# PyTorch / Model Artifacts
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.npz
+
+# CUDA / GPU Kernels
 *.i
 *.ii
-*.gpu
 *.ptx
 *.cubin
 *.fatbin
-*.venv
+*.gpu
+
+# Profiling outputs
 *.nsys-rep
-*.env
+*.nvvp
+*.prof
 
-logdir/
-__pycache__/
-
-workspace/
+# Hydra / Output Directories
 outputs/
+logdir/
+multirun/
+workspace/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Docker
+*.tar
+*.log
+
+# Terraform / Infra
+.terraform/
+terraform.tfstate*
+*.tfplan
+*.tfvars
+
+# Helm
+infra/helm/**/charts/
+infra/helm/**/templates/*.tpl

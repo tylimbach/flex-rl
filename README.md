@@ -1,6 +1,8 @@
-# flex-rl — RL & LLM Agent Pipelines for Scalable Experimentation
+# flex-rl — Modular RL + LLM System for Embodied Agents
 
-**flex-rl** is a personal research project and infrastructure showcase for reinforcement learning and language model integration. It enables scalable RL experimentation via containerized training pipelines and supports local or Kubernetes-based multi-GPU inference of open-weight LLMs.
+flex-rl is a personal research project and infrastructure showcase for embodied agent simulation and orchestration. The goal is to build highly adaptive agents that learn a small set of reusable motor skills via reinforcement learning (RL), then use a large language model (LLM) to dynamically select or modify these skills in response to real-time environment feedback and external instructions.
+
+The system supports scalable experimentation across both local and cloud infrastructure—from bare-metal on-policy PPO training to multi-GPU LLM inference using tensor parallelism on Kubernetes.
 
 ```bash
 [ Environment ]
@@ -16,42 +18,27 @@
 [ External Instruction: "Avoid the ball!" ] ──────────┘
 ```
 
-> The core architecture explores using natural language and LLMs as a central decision maker in a multimodal agent loop. By injecting instructions mid-run, agents can adapt behavior without retraining. Traditional RL is leveraged to train a small set of learned motor skills, which the language model composes to translate high-level tasks into actionable motions, resulting in the emergence of complex behaviors.
+> Instruction injection and prompting provide context for intelligent selection of the next motor primitive.
 
-The system is built with modularity and reproducibility in mind, designed to support:
-- Flexible on-policy agent training (PPO)
-- Goal-conditioned or instruction-guided environments
-- Hydra-driven experiment sweeps
-- LLM-driven behavior adaptation
-- Cloud-native inference infrastructure (GKE, torchrun)
+## Key features
 
----
-
-## 🔧 Technologies Used
-
-- **RL & Simulation**: MuJoCo, Gymnasium, Stable Baselines3
-- **Infra**: Docker, Kubernetes, torchrun, Terraform, GKE
-- **LLMs**: HuggingFace Transformers, Qwen, Mistral, LLaMA 4
-- **Config**: Hydra, Omegaconf
+- Train goal-wrapped agent policies using MuJoCo and Recurrent PPO
+- Orchestrate flexible sweeps and experiments via CLI or YAML
+- Serve LLM inference via FastAPI or job submission pipelines
+- Scale from local dev to K8s-based multi-GPU inference with tensor parallelism
+- Infrastructure as Code with Terraform and Helm
 
 ---
 
-## 🧱 Architecture Overview
+## Powered By
 
-- `rl/`: PPO agents, custom envs, Gym wrappers
-- `llm/`: Inference pipelines and configs
-- `docker/`: Runtime images for training & inference
-- `k8s/`: Kubernetes job templates + Make targets
-- `workspace/`: Training logs, rollouts, and metadata
-
----
-
-## 🧪 Experimental Phases
-
-- **Skill Pretraining** — locomotion PPO training in MuJoCo
-- **Goal-Conditioned Fine-Tuning** — via Gym wrappers + config
-- **Instruction-Driven Control** — LLM-generated goal inputs (in progress)
-- **Offline RL + Datasets** — embedding conditioning (planned)
+- [MuJoCo](https://mujoco.org/): Physics simulation engine with [Gymnasium](https://github.com/Farama-Foundation/Gymnasium) wrappers
+- [Stable Baselines3](https://github.com/DLR-RM/stable-baselines3): PPO + RL algorithms
+- [Transformers](https://github.com/huggingface/transformers): Pretrained LLMs and inference pipelines
+- [Docker](https://www.docker.com/): Runtime containerization
+- [Helm](https://helm.sh/): [Kubernetes](https://kubernetes.io/) application management
+- [Terraform](https://www.terraform.io/): Infrastructure as code for cloud deployment
+- [Hydra](https://github.com/facebookresearch/hydra): Hierarchical configuration management on top of [OmegaConf](https://github.com/omry/omegaconf)
 
 ---
 

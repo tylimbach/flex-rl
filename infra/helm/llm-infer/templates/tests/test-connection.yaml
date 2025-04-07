@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "llm-infer.fullname" . }}-test-connection"
+  labels:
+    {{- include "llm-infer.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "llm-infer.fullname" . }}:{{ .Values.service.port }}']
+  restartPolicy: Never
