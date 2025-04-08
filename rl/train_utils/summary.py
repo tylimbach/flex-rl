@@ -1,24 +1,26 @@
 import os
+import logging
 
 import yaml
 
+log = logging.getLogger(__name__)
 
 def print_summary(base_dir):
-	snapshot_log = os.path.join(base_dir, "checkpoints", "snapshot_log.yaml")
-	if not os.path.exists(snapshot_log):
-		print("❗ No snapshot log found.")
+	snapshot_log_path = os.path.join(base_dir, "checkpoints", "snapshot_log.yaml")
+	if not os.path.exists(snapshot_log_path):
+		log.info("❗ No snapshot log found.")
 		return
 
-	with open(snapshot_log) as f:
-		log = yaml.safe_load(f)
+	with open(snapshot_log_path) as f:
+		snapshot_log = yaml.safe_load(f)
 
-	print("\\n📊 Training Summary:")
-	print(f"Total Timesteps: {log.get('cumulative_steps', 0)}")
+	log.info("\\n📊 Training Summary:")
+	log.info(f"Total Timesteps: {snapshot_log.get('cumulative_steps', 0)}")
 
 	best_dir = os.path.join(base_dir, "checkpoints", "best")
 	if os.path.exists(best_dir):
-		print(f"Best Model Saved At: {best_dir}")
+		log.info(f"Best Model Saved At: {best_dir}")
 	else:
-		print("No best model saved.")
+		log.info("No best model saved.")
 
-	print(f"Full Snapshot Log: {snapshot_log}")
+	log.info(f"Full Snapshot Log: {snapshot_log_path}")

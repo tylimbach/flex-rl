@@ -1,10 +1,16 @@
 import logging
 import os
+import shutil
+from dataclasses import dataclass
+from typing import Any
 
 import hydra
+import mlflow
+import mlflow.utils.mlflow_tags
 import torch
 from omegaconf import DictConfig, OmegaConf
 from sb3_contrib import RecurrentPPO
+from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 from rl.envs import GoalSampler, load_goals_from_config
@@ -21,22 +27,70 @@ from rl.train_utils import (
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+
+@dataclass
+class TrainingContext:
+	cfg: DictConfig
+	model: RecurrentPPO
+	env: VecNormalize
+	goal_sampler: GoalSampler
+	checkpoint_dir: str
+	workspace_dir: str
+
+
+@dataclass
+class TrainingResult:
+	final_reward: float
+	model: BaseAlgorithm
+	env: Any
+	orig_model_path: str | None = None
+
+
 @hydra.main(config_path="configs", config_name="train", version_base="1.3")
 def main(cfg: DictConfig):
 	log.info(f"Resolved config:\n{OmegaConf.to_yaml(cfg)}")
+
 	exp_name = cfg.get("experiment_name") or "default_exp"
 	workspace = os.path.abspath(cfg.runtime.workspace_dir)
 	exp_base = os.path.join(workspace, exp_name)
 	workspace_dir = get_unique_experiment_dir(exp_base)
 	os.makedirs(workspace_dir, exist_ok=True)
+
 	with open(os.path.join(workspace_dir, "config.yaml"), "w") as f:
 		OmegaConf.save(config=cfg, f=f.name)
 	log.info(f"✅ Saved resolved config to {f.name}")
 
-	train(cfg, workspace_dir)
+	result = train(cfg, workspace_dir)
+	record(cfg, result)
 
 
-def train(cfg: DictConfig, workspace_dir):
+def record(cfg, result: TrainingResult):
+	experiment_name = cfg.get("experiment_name", "default")
+	mlflow.set_tracking_uri(cfg.get("mlflow_uri", "http://localhost:5000"))
+	mlflow.set_experiment(experiment_name)
+
+	with mlflow.start_run():
+		mlflow.log_params(OmegaConf.to_container(cfg, resolve=True))
+		mlflow.set_tags({
+			mlflow.utils.mlflow_tags.MLFLOW_RUN_NAME: experiment_name,
+			"policy": cfg.policy,
+			"env": cfg.env_id,
+		})
+		mlflow.log_metric("final_reward", result.final_reward)
+
+		snapshot_dir = "outputs/best_model"
+		os.makedirs(snapshot_dir, exist_ok=True)
+		result.model.save(os.path.join(snapshot_dir, "model.zip"))
+		result.env.save(os.path.join(snapshot_dir, "vecnormalize.pkl"))
+
+		if result.orig_model_path:
+			shutil.copy(result.orig_model_path, os.path.join(snapshot_dir, "origination.txt"))
+			mlflow.set_tag("resumed_from", result.orig_model_path)
+
+		mlflow.log_artifacts(snapshot_dir, artifact_path="best_model")
+
+
+def train(cfg: DictConfig, workspace_dir: str) -> TrainingResult:
 	checkpoint_dir = os.path.join(workspace_dir, "checkpoints")
 	log_dir = os.path.join(workspace_dir, "log")
 
@@ -52,7 +106,7 @@ def train(cfg: DictConfig, workspace_dir):
 	parent_path = None
 	resumed_at = None
 
-	if cfg.get("model"):
+	if cfg.get("parent_model"):
 		log.info(f"📦 Loading snapshot from: {cfg.model}")
 		dummy_env = DummyVecEnv([make_env(cfg.env.env_id, goal_sampler) for _ in range(N_ENVS)])
 		normalize_path = os.path.join(cfg.model, "vecnormalize.pkl")
@@ -87,7 +141,7 @@ def train(cfg: DictConfig, workspace_dir):
 			gae_lambda=cfg.training.gae_lambda,
 			ent_coef=cfg.training.ent_coef,
 			clip_range=cfg.training.clip_range,
-			verbose=2,
+			verbose=0,
 			device=cfg.training.device,
 			tensorboard_log=log_dir,
 		)
@@ -126,6 +180,7 @@ def train(cfg: DictConfig, workspace_dir):
 		save_full_snapshot(model, env, snap_dir, model.num_timesteps, interrupt=True)
 	finally:
 		print_summary(workspace_dir)
+		return TrainingResult(eval_cb.best_reward, eval_cb.model, cfg.env.env_id, cfg.parent_model)
 
 
 if __name__ == "__main__":

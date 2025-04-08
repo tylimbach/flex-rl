@@ -1,8 +1,6 @@
-# flex-rl — Modular RL + LLM for Embodied Agents
+# flex-rl — Multi-GPU Inference for Adaptive Embodied Agents
 
-flex-rl is a personal research project and infrastructure showcase for embodied agent simulation and orchestration. The goal is to build highly adaptive agents that learn a small set of reusable motor skills via reinforcement learning (RL), then use a large language model (LLM) to dynamically select or modify these skills in response to real-time environment feedback and external instructions.
-
-The system supports scalable experimentation across both local and cloud infrastructure: from bare-metal on-policy PPO training to multi-GPU LLM inference using tensor parallelism on Kubernetes.
+flex-rl's goal is to build adaptable agents from a small set of trained motor policies (RL) by incorporating a large language model (LLM) to steer skill selection in response to real-time environment feedback and external instructions. The system supports scalable experimentation across both local and cloud infrastructure: from bare-metal on-policy PPO training to multi-GPU LLM inference using tensor parallelism on Kubernetes.
 
 ```bash
 [ Environment ]
@@ -33,8 +31,9 @@ The system supports scalable experimentation across both local and cloud infrast
 ## Powered By
 
 - [MuJoCo](https://mujoco.org/): Physics simulation engine with [Gymnasium](https://github.com/Farama-Foundation/Gymnasium) wrappers
-- [Stable Baselines3](https://github.com/DLR-RM/stable-baselines3): PPO + RL algorithms
+- [MLFlow](https://github.com/facebookresearch/hydra): Platform for experiment tracking and GUIs
 - [Transformers](https://github.com/huggingface/transformers): Pretrained LLMs and inference pipelines
+- [Stable Baselines3](https://github.com/DLR-RM/stable-baselines3): PPO RL algorithms
 - [Docker](https://www.docker.com/): Runtime containerization
 - [Helm](https://helm.sh/): [Kubernetes](https://kubernetes.io/) application management
 - [Terraform](https://www.terraform.io/): Infrastructure as code for cloud deployment
@@ -42,7 +41,7 @@ The system supports scalable experimentation across both local and cloud infrast
 
 ---
 
-## ☁️ Infrastructure Modes
+## Infrastructure Modes
 
 | Mode               | Purpose                                 |
 |--------------------|------------------------------------------|
@@ -53,7 +52,7 @@ The system supports scalable experimentation across both local and cloud infrast
 
 ---
 
-## 📚 Project Scope
+## Project Scope
 
 This is an independent research prototype. While not designed for broad reuse, it reflects real-world ML infrastructure with RL-focused design choices, end-to-end orchestration, and custom LLM-agent integration experiments.
 

@@ -1,6 +1,7 @@
 import datetime
 import os
 import shutil
+import mlflow
 
 import yaml
 
@@ -38,5 +39,4 @@ def save_full_snapshot(model, env, path, step, eval_reward=None, interrupt=False
 	if os.path.exists(metadata_src):
 		shutil.copy(metadata_src, metadata_dst)
 
-	update_snapshot_log(os.path.dirname(path), step, eval_reward, interrupt)
 	print(f"✅ Saved snapshot at {path}")

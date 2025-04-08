@@ -6,4 +6,4 @@ defaults:
   - _self_
 
 experiment_name: null
-model: null
+parent_model: null
