@@ -40,7 +40,7 @@ class SnapshotAndEvalCallback(BaseCallback):
 
 		reward_by_goal = evaluate_model_on_goals(
 			model=self.ctx.model,
-			vecnormalize_path=os.path.join(self.ctx.checkpoint_dir, "vecnormalize.pkl"),
+			trained_vecnormalize_env=self.ctx.env,
 			env_cfg=self.env_cfg,
 			goals=self.ctx.goal_sampler.goals,
 			eval_episodes=self.eval_episodes,
@@ -56,7 +56,7 @@ class SnapshotAndEvalCallback(BaseCallback):
 			self.ctx.env.save(os.path.join(step_dir, "vecnormalize.pkl"))
 			log.info(f"📸 Saved new best snapshot with avg_reward={avg_reward:.2f} at step {self.num_timesteps}")
 
-		if self.early_stopper and not self.early_stopper.should_stop(avg_reward):
+		if self.early_stopper and self.early_stopper.should_stop(avg_reward):
 			log.warning("⏹️ Early stopping triggered.")
 			return False
 		return True

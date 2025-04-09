@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 def evaluate_model_on_goals(
 	model: BaseAlgorithm,
-	vecnormalize_path: str,
+	trained_vecnormalize_env: VecNormalize,
 	env_cfg: EnvConfig,
 	goals: list[Goal],
 	eval_episodes: int,
@@ -26,14 +26,18 @@ def evaluate_model_on_goals(
 	for goal in goals:
 		sampler = GoalSampler.single(goal)
 		env_fns = [make_env(env_cfg["env_id"], sampler) for _ in range(n_envs)]
-		env = DummyVecEnv(env_fns)
-		env = VecNormalize.load(vecnormalize_path, env)
-		env.training = False
-		env.norm_reward = False
+		eval_env = DummyVecEnv(env_fns)
+		eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=True, clip_obs=trained_vecnormalize_env.clip_obs)
+
+		# Copy normalization statistics from training env
+		eval_env.obs_rms = trained_vecnormalize_env.obs_rms
+		eval_env.ret_rms = trained_vecnormalize_env.ret_rms
+		eval_env.training = False
+		eval_env.norm_reward = False
 
 		episode_rewards = []
 		for _ in range(math.ceil(eval_episodes / n_envs)):
-			obs = env.reset()
+			obs = eval_env.reset()
 			lstm_states = None
 			episode_starts = np.ones((n_envs,), dtype=bool)
 			curr_rewards = [0.0] * n_envs
@@ -43,7 +47,7 @@ def evaluate_model_on_goals(
 				action, lstm_states = model.predict(
 					obs, state=lstm_states, episode_start=episode_starts, deterministic=True
 				)
-				obs, reward, done, _ = env.step(action)
+				obs, reward, done, _ = eval_env.step(action)
 				episode_starts = done
 				for i in range(n_envs):
 					if not done_flags[i]:

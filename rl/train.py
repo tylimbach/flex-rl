@@ -161,13 +161,13 @@ def train(cfg: TopLevelConfig, workspace_dir: str) -> TrainingResult:
 		log.warning("Training interrupted manually. Saving snapshot...")
 		snap_dir = os.path.join(checkpoint_dir, "manual_interrupt")
 		save_full_snapshot(model, env, snap_dir)
-	except Exception:
-		log.warning("Training interrupted due to error. Saving snapshot...")
+	except Exception as e:
+		log.warning(f"Training interrupted due to error {e}. Saving snapshot...")
 		snap_dir = os.path.join(checkpoint_dir, "crash")
 		save_full_snapshot(model, env, snap_dir)
 	finally:
 		print_summary(workspace_dir)
-		return TrainingResult(eval_cb.best_reward, eval_cb.model, cfg.env.env_id, cfg.parent_model)
+		return TrainingResult(eval_cb.best_reward, eval_cb.model, cfg.env, cfg.parent_model)
 
 if __name__ == "__main__":
 	main()
