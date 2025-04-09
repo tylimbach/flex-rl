@@ -8,7 +8,7 @@ import math
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from sb3_contrib import RecurrentPPO
 
-from ..envs import GoalSampler, load_goals_from_config, Goal
+from ..envs import GoalSampler, Goal
 from .config import EnvConfig
 from .env_factory import make_env
 
@@ -58,19 +58,19 @@ def evaluate_model_on_goals(
 	return results
 
 
-def evaluate_snapshot(snapshot_path: str, eval_episodes: int = 10, n_envs: int = 1) -> dict:
-	model_path = os.path.join(snapshot_path, "model.zip")
-	vecnorm_path = os.path.join(snapshot_path, "vecnormalize.pkl")
-	metadata_path = os.path.join(snapshot_path, "metadata.yaml")
-
-	if not all(os.path.exists(p) for p in [model_path, vecnorm_path, metadata_path]):
-		raise FileNotFoundError(f"Missing files in snapshot: {snapshot_path}")
-
-	with open(metadata_path) as f:
-		metadata = yaml.safe_load(f)
-		cfg = metadata["config"]["env"]
-		goals = load_goals_from_config(cfg.get("sampling_goals"))
-
-	model = RecurrentPPO.load(model_path, device="cuda")
-
-	return evaluate_model_on_goals(model, vecnorm_path, metadata["config"]["env"], goals, eval_episodes, n_envs)
+# def evaluate_snapshot(snapshot_path: str, eval_episodes: int = 10, n_envs: int = 1) -> dict[Goal, float]:
+# 	model_path = os.path.join(snapshot_path, "model.zip")
+# 	vecnorm_path = os.path.join(snapshot_path, "vecnormalize.pkl")
+# 	metadata_path = os.path.join(snapshot_path, "metadata.yaml")
+#
+# 	if not all(os.path.exists(p) for p in [model_path, vecnorm_path, metadata_path]):
+# 		raise FileNotFoundError(f"Missing files in snapshot: {snapshot_path}")
+#
+# 	with open(metadata_path) as f:
+# 		metadata = yaml.safe_load(f)
+# 		cfg = metadata["config"]["env"]
+# 		goals = load_goals_from_config(cfg.get("sampling_goals"))
+#
+# 	model = RecurrentPPO.load(model_path, device="cuda")
+#
+# 	return evaluate_model_on_goals(model, vecnorm_path, metadata["config"]["env"], goals, eval_episodes, n_envs)

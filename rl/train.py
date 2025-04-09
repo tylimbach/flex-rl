@@ -10,7 +10,10 @@ from omegaconf import OmegaConf
 from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-from .envs import GoalSampler, load_goals_from_config
+from .train_utils.training import TrainingContext
+
+
+from .envs import GoalSampler, Goal
 from .train_utils import (
 	EarlyStopper,
 	SnapshotAndEvalCallback,
@@ -33,7 +36,7 @@ def main(cfg: TopLevelConfig) -> None:
 	log.info(f"Resolved config:\n{OmegaConf.to_yaml(cfg)}")
 
 	exp_name = cfg.experiment_name or "default_exp"
-	workspace = os.path.abspath(cfg.runtime.workspace_dir)
+	workspace = os.path.abspath(cfg.runtime.workspace_path)
 	exp_base = os.path.join(workspace, exp_name)
 	workspace_dir = get_unique_experiment_dir(exp_base)
 	os.makedirs(workspace_dir, exist_ok=True)
@@ -45,13 +48,13 @@ def main(cfg: TopLevelConfig) -> None:
 	result = train(cfg, workspace_dir)
 	record(cfg, result)
 
-def record(cfg: TopLevelConfig, result: TrainingResult):
+def record(cfg: TopLevelConfig, result: TrainingResult) -> None:
 	experiment_name = cfg.experiment_name or "default"
 	mlflow.set_tracking_uri(cfg.runtime.mlflow_uri)
-	mlflow.set_experiment(experiment_name)
+	experiment = mlflow.set_experiment(experiment_name)
 
 	with mlflow.start_run():
-		mlflow.log_params(OmegaConf.to_container(OmegaConf.structured(cfg), resolve=True))
+		# mlflow.log_params(cfg)
 		mlflow.set_tags({
 			mlflow.utils.mlflow_tags.MLFLOW_RUN_NAME: experiment_name,
 			"policy": cfg.training.policy,
@@ -79,7 +82,7 @@ def train(cfg: TopLevelConfig, workspace_dir: str) -> TrainingResult:
 	os.makedirs(log_dir, exist_ok=True)
 
 	n_envs: int = cfg.training.n_envs
-	train_goals = load_goals_from_config(cfg.env.sampling_goals)
+	train_goals = [Goal.from_cfg(x.name, x.weight) for x in cfg.env.sampling_goals]
 	goal_sampler = GoalSampler(strategy=cfg.env.sampling_strategy, goals=train_goals)
 
 	normalize_path = None
@@ -142,12 +145,12 @@ def train(cfg: TopLevelConfig, workspace_dir: str) -> TrainingResult:
 	eval_env.norm_reward = False
 
 	early_stopper = EarlyStopper(cfg.training.early_stopper)
+	ctx = TrainingContext(cfg, model, env, goal_sampler, checkpoint_dir, workspace_dir)
 	eval_cb = SnapshotAndEvalCallback(
-		model=model,
-		save_freq=cfg.evaluation.eval_freq // n_envs,
-		env=env,
+		ctx=ctx,
+		env_cfg=cfg.env,
+		eval_cfg=cfg.evaluation,
 		eval_envs=n_envs,
-		save_dir=checkpoint_dir,
 		eval_episodes=cfg.evaluation.eval_episodes,
 		early_stopper=early_stopper
 	)
@@ -155,8 +158,12 @@ def train(cfg: TopLevelConfig, workspace_dir: str) -> TrainingResult:
 	try:
 		model.learn(total_timesteps=cfg.training.total_timesteps, callback=[eval_cb])
 	except KeyboardInterrupt:
-		log.warning("Training interrupted. Saving snapshot...")
+		log.warning("Training interrupted manually. Saving snapshot...")
 		snap_dir = os.path.join(checkpoint_dir, "manual_interrupt")
+		save_full_snapshot(model, env, snap_dir)
+	except Exception:
+		log.warning("Training interrupted due to error. Saving snapshot...")
+		snap_dir = os.path.join(checkpoint_dir, "crash")
 		save_full_snapshot(model, env, snap_dir)
 	finally:
 		print_summary(workspace_dir)

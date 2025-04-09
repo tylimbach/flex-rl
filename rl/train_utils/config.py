@@ -54,8 +54,8 @@ class EvaluationConfig:
 
 @dataclass
 class RuntimeConfig:
-	workspace_path: list[str]
-	mlflow_uri: str | None
+	workspace_path: str
+	mlflow_uri: str
 
 
 @dataclass

@@ -1,7 +1,12 @@
-import os
 import logging
+import os
+from typing import override
+
+import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
+from ..envs import Goal
+from .config import EnvConfig, EvaluationConfig
 from .early_stopping import EarlyStopper
 from .evaluation import evaluate_model_on_goals
 from .training import TrainingContext
@@ -9,29 +14,39 @@ from .training import TrainingContext
 log = logging.getLogger(__name__)
 
 class SnapshotAndEvalCallback(BaseCallback):
-	def __init__(self, ctx: TrainingContext, eval_envs: int, eval_episodes: int, early_stopper: Optional[EarlyStopper] = None, verbose=0):
+	def __init__(
+		self,
+		ctx: TrainingContext,
+		env_cfg: EnvConfig,
+		eval_cfg: EvaluationConfig,
+		eval_envs: int,
+		eval_episodes: int,
+		early_stopper: EarlyStopper | None = None,
+		verbose: int = 0
+	):
 		super().__init__(verbose)
 		self.ctx = ctx
+		self.env_cfg = env_cfg
+		self.eval_cfg = eval_cfg
 		self.eval_envs = eval_envs
 		self.eval_episodes = eval_episodes
 		self.best_reward = -float("inf")
 		self.early_stopper = early_stopper
 
+	@override
 	def _on_step(self) -> bool:
-		if self.n_calls % (self.ctx.cfg.evaluation.eval_freq // self.ctx.cfg.training.n_envs) != 0:
+		if self.n_calls % (self.eval_cfg.eval_freq // self.eval_envs) != 0:
 			return True
 
-		goals = ctx.
-		goals = load_goals_from_config(self.ctx.cfg.env.sampling_goals)
 		reward_by_goal = evaluate_model_on_goals(
 			model=self.ctx.model,
 			vecnormalize_path=os.path.join(self.ctx.checkpoint_dir, "vecnormalize.pkl"),
-			env_cfg=OmegaConf.to_container(self.ctx.cfg.env, resolve=True),
-			goals=goals,
+			env_cfg=self.env_cfg,
+			goals=self.ctx.goal_sampler.goals,
 			eval_episodes=self.eval_episodes,
 			n_envs=self.eval_envs
 		)
-		avg_reward = np.mean(list(reward_by_goal.values()))
+		avg_reward: float = np.mean(list(reward_by_goal.values()))
 
 		if avg_reward > self.best_reward:
 			self.best_reward = avg_reward
@@ -41,7 +56,7 @@ class SnapshotAndEvalCallback(BaseCallback):
 			self.ctx.env.save(os.path.join(step_dir, "vecnormalize.pkl"))
 			log.info(f"📸 Saved new best snapshot with avg_reward={avg_reward:.2f} at step {self.num_timesteps}")
 
-		if self.early_stopper and not self.early_stopper.check(avg_reward):
+		if self.early_stopper and not self.early_stopper.should_stop(avg_reward):
 			log.warning("⏹️ Early stopping triggered.")
 			return False
 		return True

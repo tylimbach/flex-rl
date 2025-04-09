@@ -1,45 +1,56 @@
-from typing import Literal, List, final 
+from typing import Any, Callable, Literal, final, Self
 import random
 
+RewardFn = Callable[[dict[str, Any], dict[str, Any]], float]
+TerminationFn = Callable[[dict[str, Any]], bool]
+
+@final
 class Goal:
-	def __init__(self, name, reward_fn, termination_fn=None, weight=1.0):
+	def __init__(self, name: str, reward_fn: RewardFn, termination_fn: TerminationFn | None = None, weight: float = 1.0):
 		self.name = name
 		self.reward_fn = reward_fn
 		self.termination_fn = termination_fn or (lambda info: info.get("terminated", False))
 		self.weight = weight
 
-	def compute_reward(self, prev_info, curr_info):
+	def compute_reward(self, prev_info: dict[str, Any], curr_info: dict[str, Any]) -> float:
 		return self.weight * self.reward_fn(prev_info, curr_info)
 
-	def check_termination(self, curr_info):
+	def check_termination(self, curr_info: dict[str, Any]) -> bool:
 		return self.termination_fn(curr_info)
 
+	@classmethod
+	def from_cfg(cls, name: str, weight: float) -> Self:
+		builtin = get_builtin_goals().get(name)
+		if builtin is not None:
+			return cls(name, builtin.reward_fn, builtin.termination_fn, weight)
+		raise Exception(f"No goal functions found for name: {name}")
 
-def walk_forward_reward(prev, curr):
+
+def walk_forward_reward(prev: dict[str, Any], curr: dict[str, Any]) -> float:
 	return curr.get("x_position", 0.0) - prev.get("x_position", 0.0)
 
-def walk_backward_reward(prev, curr):
+def walk_backward_reward(prev: dict[str, Any], curr: dict[str, Any]) -> float:
 	return - (curr.get("x_position", 0.0) - prev.get("x_position", 0.0))
 
-def turn_left_reward(prev, curr):
+def turn_left_reward(prev: dict[str, Any], curr: dict[str, Any]) -> float:
 	return - (curr.get("y_position", 0.0) - prev.get("y_position", 0.0))
 
-def turn_right_reward(prev, curr):
+def turn_right_reward(prev: dict[str, Any], curr: dict[str, Any]) -> float:
 	return curr.get("y_position", 0.0) - prev.get("y_position", 0.0)
 
-def stand_still_reward(prev, curr):
+def stand_still_reward(prev: dict[str, Any], curr: dict[str, Any]) -> float:
 	dx = curr.get("x_position", 0.0) - prev.get("x_position", 0.0)
 	dy = curr.get("y_position", 0.0) - prev.get("y_position", 0.0)
 	return - (abs(dx) + abs(dy))
 
-def jump_reward(prev, curr):
+def jump_reward(prev: dict[str, Any], curr: dict[str, Any]) -> float:
 	return float(curr.get("z_position", 0.0) > 1.4)
 
-def jump_termination(info):
+def jump_termination(info: dict[str, Any]) -> bool:
 	return info.get("z_position", 0.0) < 0.8
 
 
-def get_builtin_goals():
+def get_builtin_goals() -> dict[str, Goal]:
 	return {
 		"walk_forward": Goal("walk_forward", walk_forward_reward),
 		"walk_backward": Goal("walk_backward", walk_forward_reward),
@@ -50,26 +61,12 @@ def get_builtin_goals():
 	}
 
 
-def load_goals_from_config(goal_cfg_list):
-	available = get_builtin_goals()
-	loaded = []
-	for cfg in goal_cfg_list:
-		name = cfg["name"]
-		weight = cfg.get("weight", 1.0)
-		if name not in available:
-			raise ValueError(f"Unknown goal: {name}. Must be one of: {list(available.keys())}")
-		goal = available[name]
-		goal.weight = weight
-		loaded.append(goal)
-	return loaded
-
-
 @final
 class GoalSampler:
 	def __init__(
 		self, 
 		goals: list[Goal],
-		strategy: Literal["single", "balanced", "random"] = "balanced"
+		strategy: str = "balanced"
 	):
 		self.goals = goals
 		self.strategy = strategy
