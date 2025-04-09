@@ -8,8 +8,8 @@ from omegaconf import OmegaConf
 from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-from rl.envs import GoalSampler, load_goals_from_config
-from rl.train_utils import make_env, save_media
+from .envs import GoalSampler, Goal
+from .train_utils import make_env, save_media, TopLevelConfig
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -23,15 +23,17 @@ if __name__ == "__main__":
 
 	model_path = os.path.join(args.model, "model.zip")
 	vecnorm_path = os.path.join(args.model, "vecnormalize.pkl")
-	config_path = os.path.join(args.model, "metadata.yaml")
+	config_path = os.path.join(args.model, "../config.yaml")
 
 	log.info(f"🔍 Loading model from: {model_path}")
 	log.info(f"🔍 Loading normalization from: {vecnorm_path}")
 	log.info(f"🔍 Loading config from: {config_path}")
 
-	with open(config_path) as f:
-		cfg = OmegaConf.create(yaml.safe_load(f)["config"])
-		goals = load_goals_from_config(cfg.env.sampling_goals)
+	with open(config_path, "r") as f:
+		raw = OmegaConf.load(f)
+
+	cfg = OmegaConf.structured(TopLevelConfig(**raw))
+	goals = [Goal.from_cfg(x.name, x.weight) for x in cfg.env.sampling_goals]
 
 	goal_sampler = GoalSampler(strategy="balanced", goals=goals)
 	render_mode = "rgb_array" if args.video or args.gif else "human"

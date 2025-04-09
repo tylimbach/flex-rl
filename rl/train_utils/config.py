@@ -60,7 +60,6 @@ class RuntimeConfig:
 
 @dataclass
 class TopLevelConfig:
-	defaults: list[str]
 	experiment_name: str | None
 	parent_model: str | None
 	env: EnvConfig

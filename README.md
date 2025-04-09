@@ -4,6 +4,11 @@
 
 The system already supports scalable training and inference pipelines for on-policy Recurrent PPO with humanoid agents, LLM inference with PyTorch, and end-to-end infrastructure built for local and cloud-scale experimentation.
 
+<p align="center">
+  <img src="assets/run_forward.gif" width="500" alt="Trained humanoid agent sprinting">
+</p>
+<p align="center"><em>Humanoid agent trained via Recurrent PPO demonstrating sprint behavior</em></p>
+
 ## Vision & Roadmap
 
 ```bash

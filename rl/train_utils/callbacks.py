@@ -50,7 +50,7 @@ class SnapshotAndEvalCallback(BaseCallback):
 
 		if avg_reward > self.best_reward:
 			self.best_reward = avg_reward
-			step_dir = os.path.join(self.ctx.checkpoint_dir, f"step_{self.num_timesteps}")
+			step_dir = os.path.join(self.ctx.workspace_dir, "best")
 			os.makedirs(step_dir, exist_ok=True)
 			self.ctx.model.save(os.path.join(step_dir, "model.zip"))
 			self.ctx.env.save(os.path.join(step_dir, "vecnormalize.pkl"))

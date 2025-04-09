@@ -1,10 +1,11 @@
 import logging
+from typing import Any
 
 from moviepy import ImageSequenceClip
 
 log = logging.getLogger(__name__)
 
-def save_media(frames: int, path: str, fps: int = 30):
+def save_media(frames: list[Any], path: str, fps: int = 30) -> None:
 	if path.endswith(".mp4"):
 		clip = ImageSequenceClip(frames, fps=fps)
 		clip.write_videofile(path, fps=fps, codec="libx264")

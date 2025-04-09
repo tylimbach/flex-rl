@@ -14,6 +14,7 @@ __all__ = [
 	"get_unique_experiment_dir",
 	"save_metadata",
 	"save_full_snapshot",
+	"save_media",
 	"evaluate_model_on_goals",
 	"update_snapshot_log",
 	"print_summary",

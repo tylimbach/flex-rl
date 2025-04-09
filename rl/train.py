@@ -167,7 +167,7 @@ def train(cfg: TopLevelConfig, workspace_dir: str) -> TrainingResult:
 		save_full_snapshot(model, env, snap_dir)
 	finally:
 		print_summary(workspace_dir)
-		return TrainingResult(eval_cb.best_reward, eval_cb.model, cfg.env, cfg.parent_model)
+		return TrainingResult(eval_cb.best_reward, eval_cb.model, env, cfg.parent_model)
 
 if __name__ == "__main__":
 	main()
