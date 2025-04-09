@@ -1,11 +1,15 @@
 import time
 import logging
 import math
+from typing import final
+
+from .config import EarlyStopperConfig
 
 log = logging.getLogger(__name__)
 
+@final
 class EarlyStopper:
-	def __init__(self, cfg):
+	def __init__(self, cfg: EarlyStopperConfig):
 		self.enabled = cfg.enabled
 		self.patience = cfg.patience
 		self.min_delta = cfg.min_delta
@@ -17,7 +21,7 @@ class EarlyStopper:
 		self.counter = 0
 		self.start_time = time.time()
 
-	def should_stop(self, current_reward: float):
+	def should_stop(self, current_reward: float) -> bool:
 		if not self.enabled:
 			return False
 

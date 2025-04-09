@@ -4,7 +4,7 @@ from moviepy import ImageSequenceClip
 
 log = logging.getLogger(__name__)
 
-def save_media(frames, path, fps=30):
+def save_media(frames: int, path: str, fps: int = 30):
 	if path.endswith(".mp4"):
 		clip = ImageSequenceClip(frames, fps=fps)
 		clip.write_videofile(path, fps=fps, codec="libx264")

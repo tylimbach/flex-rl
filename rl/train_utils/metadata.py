@@ -1,10 +1,11 @@
 import datetime
 import os
 
+from omegaconf import DictConfig
 import yaml
 
 
-def save_metadata(path, cfg, parent=None, resumed_at=None):
+def save_metadata(path: str, cfg: DictConfig, parent: str | None, resumed_at: int | None):
 	metadata = {
 		"experiment_name": os.path.basename(path),
 		"created": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -14,19 +15,3 @@ def save_metadata(path, cfg, parent=None, resumed_at=None):
 	}
 	with open(os.path.join(path, "metadata.yaml"), "w") as f:
 		yaml.safe_dump(metadata, f)
-
-
-def print_lineage(path):
-	print(f"\\n📄 Lineage for: {path}")
-	while path:
-		meta_path = os.path.join(path, "metadata.yaml")
-		if not os.path.exists(meta_path):
-			print(f"❗ No metadata found at {path}")
-			break
-		with open(meta_path) as f:
-			meta = yaml.safe_load(f)
-		print(f"\\n➡️  Experiment: {meta['experiment_name']}")
-		print(f"   Created: {meta['created']}")
-		if meta.get("resumed_at_step"):
-			print(f"   Resumed at step: {meta['resumed_at_step']}")
-		path = meta.get("parent")

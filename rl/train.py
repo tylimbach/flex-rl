@@ -1,8 +1,6 @@
 import logging
 import os
 import shutil
-from dataclasses import dataclass
-from typing import Any
 
 import hydra
 import mlflow
@@ -10,11 +8,10 @@ import mlflow.utils.mlflow_tags
 import torch
 from omegaconf import DictConfig, OmegaConf
 from sb3_contrib import RecurrentPPO
-from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-from rl.envs import GoalSampler, load_goals_from_config
-from rl.train_utils import (
+from .envs import GoalSampler, load_goals_from_config
+from .train_utils import (
 	EarlyStopper,
 	SnapshotAndEvalCallback,
 	get_unique_experiment_dir,
@@ -22,33 +19,20 @@ from rl.train_utils import (
 	print_summary,
 	save_full_snapshot,
 	save_metadata,
+	TrainingResult,
+	TopLevelConfig
 )
 
-log = logging.getLogger(__name__)
+log: logging.Logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-
-@dataclass
-class TrainingContext:
-	cfg: DictConfig
-	model: RecurrentPPO
-	env: VecNormalize
-	goal_sampler: GoalSampler
-	checkpoint_dir: str
-	workspace_dir: str
-
-
-@dataclass
-class TrainingResult:
-	final_reward: float
-	model: BaseAlgorithm
-	env: Any
-	orig_model_path: str | None = None
-
-
 @hydra.main(config_path="configs", config_name="train", version_base="1.3")
-def main(cfg: DictConfig):
+def main(cfg: DictConfig) -> None:
 	log.info(f"Resolved config:\n{OmegaConf.to_yaml(cfg)}")
+
+	cfg_dict = OmegaConf.load("train.yaml")
+	cfg = OmegaConf.merge(OmegaConf.structured(TopLevelConfig(...)), cfg_dict)
+
 
 	exp_name = cfg.get("experiment_name") or "default_exp"
 	workspace = os.path.abspath(cfg.runtime.workspace_dir)
@@ -64,7 +48,7 @@ def main(cfg: DictConfig):
 	record(cfg, result)
 
 
-def record(cfg, result: TrainingResult):
+def record(cfg: DictConfig, result: TrainingResult):
 	experiment_name = cfg.get("experiment_name", "default")
 	mlflow.set_tracking_uri(cfg.get("mlflow_uri", "http://localhost:5000"))
 	mlflow.set_experiment(experiment_name)
@@ -98,7 +82,7 @@ def train(cfg: DictConfig, workspace_dir: str) -> TrainingResult:
 	os.makedirs(checkpoint_dir, exist_ok=True)
 	os.makedirs(log_dir, exist_ok=True)
 
-	N_ENVS = cfg.training.n_envs
+	N_ENVS: int = cfg.training.n_envs
 	train_goals = load_goals_from_config(cfg.env.sampling_goals)
 	goal_sampler = GoalSampler(strategy=cfg.env.sampling_strategy, goals=train_goals)
 

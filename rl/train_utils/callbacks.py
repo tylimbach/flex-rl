@@ -22,6 +22,7 @@ class SnapshotAndEvalCallback(BaseCallback):
 		if self.n_calls % (self.ctx.cfg.evaluation.eval_freq // self.ctx.cfg.training.n_envs) != 0:
 			return True
 
+		goals = ctx.
 		goals = load_goals_from_config(self.ctx.cfg.env.sampling_goals)
 		reward_by_goal = evaluate_model_on_goals(
 			model=self.ctx.model,
