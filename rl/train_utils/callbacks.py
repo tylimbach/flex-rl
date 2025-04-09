@@ -3,9 +3,8 @@ import logging
 from stable_baselines3.common.callbacks import BaseCallback
 
 from .early_stopping import EarlyStopper
-from .snapshot import save_full_snapshot
-from .evaluation import evaluate_model_on_goals, evaluate_snapshot
-from typing import Optional
+from .evaluation import evaluate_model_on_goals
+from .training import TrainingContext
 
 log = logging.getLogger(__name__)
 

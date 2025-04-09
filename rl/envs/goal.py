@@ -1,4 +1,4 @@
-from typing import Literal, List 
+from typing import Literal, List, final 
 import random
 
 class Goal:
@@ -64,13 +64,14 @@ def load_goals_from_config(goal_cfg_list):
 	return loaded
 
 
+@final
 class GoalSampler:
 	def __init__(
 		self, 
-		goals: List[Goal],
+		goals: list[Goal],
 		strategy: Literal["single", "balanced", "random"] = "balanced"
 	):
-		self.goals: List[Goal] = goals
+		self.goals = goals
 		self.strategy = strategy
 		self.index = 0
 

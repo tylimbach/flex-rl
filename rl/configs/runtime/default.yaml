@@ -1,2 +1,2 @@
-workspace_dir: "workspace"
+workspace_path: "workspace"
 mlflow_uri: "http://localhost:5000"

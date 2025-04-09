@@ -8,7 +8,8 @@ import math
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from sb3_contrib import RecurrentPPO
 
-from rl.envs import GoalSampler, load_goals_from_config, Goal
+from ..envs import GoalSampler, load_goals_from_config, Goal
+from .config import EnvConfig
 from .env_factory import make_env
 
 log = logging.getLogger(__name__)
@@ -16,11 +17,11 @@ log = logging.getLogger(__name__)
 def evaluate_model_on_goals(
 	model: BaseAlgorithm,
 	vecnormalize_path: str,
-	env_cfg: dict,
+	env_cfg: EnvConfig,
 	goals: list[Goal],
 	eval_episodes: int,
 	n_envs: int = 1
-) -> dict:
+) -> dict[Goal, float]:
 	results = {}
 	for goal in goals:
 		sampler = GoalSampler.single(goal)

@@ -53,6 +53,12 @@ class EvaluationConfig:
 
 
 @dataclass
+class RuntimeConfig:
+	workspace_path: list[str]
+	mlflow_uri: str | None
+
+
+@dataclass
 class TopLevelConfig:
 	defaults: list[str]
 	experiment_name: str | None
@@ -60,3 +66,4 @@ class TopLevelConfig:
 	env: EnvConfig
 	training: TrainingConfig
 	evaluation: EvaluationConfig
+	runtime: RuntimeConfig

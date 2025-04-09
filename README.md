@@ -1,11 +1,15 @@
-# flex-rl — Multi-GPU Inference for Adaptive Embodied Agents
+# flex-rl — Adaptable Agents with RL and LLMs
 
-flex-rl's goal is to build adaptable agents from a small set of trained motor policies (RL) by incorporating a large language model (LLM) to steer skill selection in response to real-time environment feedback and external instructions. The system supports scalable experimentation across both local and cloud infrastructure: from bare-metal on-policy PPO training to multi-GPU LLM inference using tensor parallelism on Kubernetes.
+**flex-rl** explores the future of adaptable embodied agents by combining reinforcement learning (RL) with large language models (LLMs). The project’s long-term goal is to enable dynamic skill switching using LLM-guided instructions and real-time feedback, allowing agents to respond fluidly to their environment and external commands.
+
+The system already supports scalable training and inference pipelines for on-policy Recurrent PPO with humanoid agents, LLM inference with PyTorch, and end-to-end infrastructure built for local and cloud-scale experimentation.
+
+## Vision & Roadmap
 
 ```bash
 [ Environment ]
         ↓
-[ Observation Encoding: "Agent: (15, 30), Ball: (20, 25)..." ]
+[ Observation Encoding: "Agent: (15, 30), Obstacle: (18, 28), Target: (20, 25)..." ]
         ↓
 [ LLM Prompt: "Choose the best action ..." ] ←────────┐
         ↓                                             │
@@ -13,18 +17,28 @@ flex-rl's goal is to build adaptable agents from a small set of trained motor po
         ↓                                             │
 [ Agent Policy Execution ]                            │
                                                       │
-[ External Instruction: "Avoid the ball!" ] ──────────┘
+[ External Instruction: "Go around the obstacle!" ] ──┘
 ```
 
-> Instruction injection and prompting provide context for intelligent selection of the next motor primitive.
+> **Goal:** Leverage pre-trained, possibly fine-tuned LLMs to select from a library of motor policies in response to environment state and natural language instructions.
 
-## Key features
+The LLM integration is self-managed and an **active work-in progress**, including support for:
 
-- Train goal-wrapped agent policies using MuJoCo and Recurrent PPO
-- Orchestrate flexible sweeps and experiments via CLI or YAML
-- Serve LLM inference via FastAPI or job submission pipelines
-- Scale from local dev to K8s-based multi-GPU inference with tensor parallelism
-- Infrastructure as Code with Terraform and Helm
+- Sharded inference across GPUs using PyTorch FSDP
+- Prompt encoding from simulation states
+- Real-time instruction injection
+- Goal-conditioned inference steering
+
+
+## Key features (Implemented)
+
+- Train MuJoCo humanoid agents using Recurrent PPO
+- Flexible hyperparameter sweeps (CLI overrides + YAML config)
+- Local experiment tracking with growing MLFlow integration
+- Containerized RL + inference workflows
+- Multi-GPU LLM inference using HuggingFace Transformers
+- Infrastructure-as-code stack (Terraform, Docker, Helm, Kubernetes)
+- Deployment modes for local testing, minikube, and Google Cloud Platform (GCP)
 
 ---
 
@@ -46,14 +60,14 @@ flex-rl's goal is to build adaptable agents from a small set of trained motor po
 | Mode               | Purpose                                 |
 |--------------------|------------------------------------------|
 | Local              | Training, debugging, rollouts            |
-| Docker             | Containerized reproducibility            |
+| Docker             | Reproducible container builds            |
 | Minikube           | Local Kubernetes job testing             |
-| Cloud                | Cloud inference + multi-GPU deployment  |
+| Cloud                | Multi-GPU inference and autoscaling  |
 
 ---
 
 ## Project Scope
 
-This is an independent research prototype. While not designed for broad reuse, it reflects real-world ML infrastructure with RL-focused design choices, end-to-end orchestration, and custom LLM-agent integration experiments.
+This is an independent, research-grade prototype. While not intended as a framework, it reflects my efforts to follow real-world infrastructure design for RL pipelines, agent simulation, and distributed inference.
 
-Engineers and researchers are encouraged to explore the RL and infra patterns within. Contributions welcome.
+Researchers and engineers are welcome to explore the implementation, adapt patterns, or extend components. Contributions and feedback are encouraged, I'd love to talk to anyone pursuing this area of work.
