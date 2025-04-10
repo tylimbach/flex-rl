@@ -17,7 +17,7 @@ device: cuda
 
 early_stopper:
   enabled: true
-  patience: 15
+  patience: 20
   min_delta: 1.0
   reward_key: avg_reward
   reward_threshold: null

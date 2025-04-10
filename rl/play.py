@@ -1,10 +1,9 @@
-import argparse
 import logging
 import os
 
-import numpy as np
-import yaml
+import hydra
 from omegaconf import OmegaConf
+import numpy as np
 from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
@@ -14,39 +13,34 @@ from .train_utils import make_env, save_media, TopLevelConfig
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-if __name__ == "__main__":
-	parser = argparse.ArgumentParser()
-	parser.add_argument("--model", type=str, required=True)
-	parser.add_argument("--video", type=str, help="Save episode to .mp4")
-	parser.add_argument("--gif", type=str, help="Save episode to .gif")
-	args = parser.parse_args()
 
-	model_path = os.path.join(args.model, "model.zip")
-	vecnorm_path = os.path.join(args.model, "vecnormalize.pkl")
-	config_path = os.path.join(args.model, "../config.yaml")
+@hydra.main(config_path="configs", config_name="play", version_base="1.3")
+def main(cfg):
+	model_path = os.path.join(cfg.model_dir, "model.zip")
+	vecnorm_path = os.path.join(cfg.model_dir, "vecnormalize.pkl")
+	config_path = os.path.join(cfg.model_dir, "../config.yaml")
 
 	log.info(f"🔍 Loading model from: {model_path}")
 	log.info(f"🔍 Loading normalization from: {vecnorm_path}")
 	log.info(f"🔍 Loading config from: {config_path}")
 
-	with open(config_path, "r") as f:
-		raw = OmegaConf.load(f)
+	raw = OmegaConf.load(config_path)
+	env_cfg = OmegaConf.structured(TopLevelConfig(**raw))
 
-	cfg = OmegaConf.structured(TopLevelConfig(**raw))
-	goals = [Goal.from_cfg(x.name, x.weight) for x in cfg.env.sampling_goals]
-
+	goals = [Goal.from_cfg(x.name, x.weight) for x in env_cfg.env.sampling_goals]
 	goal_sampler = GoalSampler(strategy="balanced", goals=goals)
-	render_mode = "rgb_array" if args.video or args.gif else "human"
-	env = DummyVecEnv([make_env(cfg.env.env_id, goal_sampler, render_mode)])
+	render_mode = "rgb_array" if cfg.mp4_path or cfg.gif_path else "human"
+
+	env = DummyVecEnv([make_env(env_cfg.env.env_id, goal_sampler, render_mode)])
 	env = VecNormalize.load(vecnorm_path, env)
 	env.training = False
 	env.norm_reward = False
 
-	model = RecurrentPPO.load(model_path, env=env, device="cuda")
+	model = RecurrentPPO.load(model_path, env=env, device=cfg.device)
 	obs = env.reset()
 
-	if args.video or args.gif:
-		output_path = args.video or args.gif
+	if cfg.mp4_path or cfg.gif_path:
+		output_path = cfg.mp4_path or cfg.gif_path
 		log.info(f"🎥 Recording to {output_path}")
 		lstm_states = None
 		episode_starts = np.ones((env.num_envs,), dtype=bool)
@@ -80,3 +74,7 @@ if __name__ == "__main__":
 			except Exception:
 				env.reset()
 				env.close()
+
+
+if __name__ == "__main__":
+	main()

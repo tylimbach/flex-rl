@@ -1,64 +1,67 @@
 import os
+import sys
 import logging
-
 import torch
-from fastapi import FastAPI, Request
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
 from pydantic import BaseModel
-from transformers import (
-	AutoModelForCausalLM,
-	AutoTokenizer,
-	Llama4ForConditionalGeneration,
-)
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from hydra import initialize, compose
 
-log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
-MODEL_ID = os.getenv("MODEL_ID", "meta-llama/Llama-4")
-ATTN_IMPL = os.getenv("ATTN_IMPL", "flash_attention_2")
-TORCH_DTYPE = getattr(torch, os.getenv("TORCH_DTYPE", "bfloat16"))
-
-tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-if "Llama-4" in MODEL_ID:
-	model = Llama4ForConditionalGeneration.from_pretrained(
-		MODEL_ID,
-		attn_implementation=ATTN_IMPL,
-		device_map="auto",
-		torch_dtype=TORCH_DTYPE,
-	)
-else:
-	model = AutoModelForCausalLM.from_pretrained(
-		MODEL_ID,
-		attn_implementation=ATTN_IMPL,
-		device_map="auto",
-		torch_dtype=TORCH_DTYPE,
-	)
-
-log.info(f"Model {MODEL_ID} loaded")
-
-app = FastAPI()
 
 class PromptRequest(BaseModel):
 	prompt: str
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+	log.info("Starting model load...")
+	sys.stdout.flush()
+
+	try:
+		initialize(config_path="configs", version_base="1.3")
+		cfg = compose(config_name="qwen-1.5")
+		log.info(f"Loaded config: {cfg}")
+		sys.stdout.flush()
+
+		device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		tokenizer = AutoTokenizer.from_pretrained(cfg.model_id)
+		model = AutoModelForCausalLM.from_pretrained(
+			cfg.model_id,
+			device_map={"": device},
+			attn_implementation=cfg.attn_implementation,
+			torch_dtype=getattr(torch, cfg.torch_dtype)
+		)
+
+		app.state.model = model
+		app.state.tokenizer = tokenizer
+		app.state.device = device
+
+		log.info("Model loaded.")
+		sys.stdout.flush()
+
+		yield
+
+	except Exception as e:
+		log.exception("Startup failed")
+		sys.stdout.flush()
+		raise e
+
+
+app = FastAPI(lifespan=lifespan)
+
+
 @app.post("/infer")
-def infer(request: PromptRequest):
-	messages = [{"role": "user", "content": request.prompt}]
-	inputs = tokenizer.apply_chat_template(
-		messages,
-		add_generation_prompt=True,
-		return_tensors="pt",
-		return_dict=True,
-	)
-	inputs = {k: v.to(model.device) for k, v in inputs.items()}
-	outputs = model.generate(
-		**inputs,
-		max_new_tokens=128,
-		temperature=0.7,
-		top_p=0.9,
-		do_sample=True,
-	)
-	response = tokenizer.batch_decode(
-		outputs[:, inputs["input_ids"].shape[-1]:],
-		skip_special_tokens=True
-	)[0]
-	return {"response": response}
+async def infer(request: PromptRequest):
+	model = app.state.model
+	tokenizer = app.state.tokenizer
+	device = app.state.device
+
+	inputs = tokenizer(request.prompt, return_tensors="pt").to(device)
+	outputs = model.generate(**inputs)
+	result = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+	return {"response": result}

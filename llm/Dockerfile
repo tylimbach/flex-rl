@@ -5,7 +5,6 @@ COPY llm/ .
 
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# inference job
-ENTRYPOINT ["python", "-m", "llm.infer"]
-# inference service
-# CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]
+# ENTRYPOINT ["python", "-m", "llm.infer"]
+
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def load_model(model_id: str, attn_impl: str, torch_dtype: str):
+def load_model(model_id: str, attn_impl: str, torch_dtype: str, device):
 	tokenizer = AutoTokenizer.from_pretrained(model_id)
 	dtype = getattr(torch, torch_dtype)
 
@@ -26,7 +26,7 @@ def load_model(model_id: str, attn_impl: str, torch_dtype: str):
 		model = Llama4ForConditionalGeneration.from_pretrained(
 			model_id,
 			attn_implementation=attn_impl,
-			device_map="auto",
+			device_map={"": device},
 			torch_dtype=dtype,
 		)
 		return tokenizer, model
@@ -67,23 +67,27 @@ def generate(prompt: str, tokenizer, model):
 def setup_distributed(rank, world_size):
 	os.environ["RANK"] = str(rank)
 	os.environ["WORLD_SIZE"] = str(world_size)
-	dist.init_process_group("nccl", rank=rank, world_size=world_size)
+	dist.init_process_group("nccl", init_method="env://", rank=rank, world_size=world_size)
 
 
 def run(rank, world_size, cfg):
-	setup_distributed(rank, world_size)
-	tokenizer, model = load_model(
-		model_id=cfg.model_id,
-		attn_impl=cfg.attn_implementation,
-		torch_dtype=cfg.torch_dtype,
-	)
-	log.info(f"Model loaded on rank {rank}")
-	if rank == 0:
-		generate(cfg.prompt, tokenizer, model)
+	try:
+		setup_distributed(rank, world_size)
+		torch.cuda.set_device(rank)
+		device = torch.device(f"cuda:{rank}")
+		tokenizer, model = load_model(cfg.model_id, cfg.attn_implementation, cfg.torch_dtype, device)
+		log.info(f"Model loaded on rank {rank}")
+		if rank == 0:
+			generate(cfg.prompt, tokenizer, model)
+	except Exception as e:
+		log.exception(f"Rank {rank} failed: {e}")
 
 
 @hydra.main(config_path="configs", config_name="qwen-1.5", version_base="1.3")
 def main(cfg: DictConfig):
+	os.environ.setdefault("MASTER_ADDR", "localhost")
+	os.environ.setdefault("MASTER_PORT", "12355")
+
 	world_size = torch.cuda.device_count()
 	mp.spawn(run, args=(world_size, cfg), nprocs=world_size)
 

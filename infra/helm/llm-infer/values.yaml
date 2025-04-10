@@ -19,3 +19,15 @@ env:
       secretKeyRef:
         name: hf-secret
         key: token
+
+replicaCount: 1
+
+autoscaling:
+  enabled: false
+
+podLabels: {}
+
+serviceAccount:
+  create: true
+  name: llm-infer
+  automount: true

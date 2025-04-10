@@ -4,10 +4,13 @@
 
 The system already supports scalable training and inference pipelines for on-policy Recurrent PPO with humanoid agents, LLM inference with PyTorch, and end-to-end infrastructure built for local and cloud-scale experimentation.
 
-<p align="center">
-  <img src="assets/run_forward.gif" width="500" alt="Trained humanoid agent sprinting">
-</p>
-<p align="center"><em>Humanoid agent trained via Recurrent PPO demonstrating sprint behavior</em></p>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;">
+	<img src="assets/run_forward.gif" width="23%" />
+	<img src="assets/run_left.gif" width="23%" />
+	<img src="assets/run_right.gif" width="23%" />
+	<img src="assets/stand_still.gif" width="23%" />
+</div>
+<p align="center"><em>Humanoid agent policies trained with Recurrent PPO</em></p>
 
 ## Vision & Roadmap
 
@@ -57,6 +60,7 @@ The LLM integration is self-managed and an **active work-in progress**, includin
 - [Helm](https://helm.sh/): [Kubernetes](https://kubernetes.io/) application management
 - [Terraform](https://www.terraform.io/): Infrastructure as code for cloud deployment
 - [Hydra](https://github.com/facebookresearch/hydra): Hierarchical configuration management on top of [OmegaConf](https://github.com/omry/omegaconf)
+- [FastAPI](https://fastapi.tiangolo.com/): Serving self-managed LLM inference requests
 
 ---
 

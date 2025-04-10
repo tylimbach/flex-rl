@@ -53,7 +53,7 @@ def jump_termination(info: dict[str, Any]) -> bool:
 def get_builtin_goals() -> dict[str, Goal]:
 	return {
 		"walk_forward": Goal("walk_forward", walk_forward_reward),
-		"walk_backward": Goal("walk_backward", walk_forward_reward),
+		"walk_backward": Goal("walk_backward", walk_backward_reward),
 		"turn_left": Goal("turn_left", turn_left_reward),
 		"turn_right": Goal("turn_right", turn_right_reward),
 		"stand_still": Goal("stand_still", stand_still_reward),

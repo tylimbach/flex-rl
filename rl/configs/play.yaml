@@ -1,0 +1,7 @@
+defaults:
+  - _self_
+
+model_dir: "workspace/"
+mp4_path: null
+gif_path: null
+device: "cuda"
