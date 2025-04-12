@@ -5,7 +5,6 @@ from typing import override
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
-from ..envs import Goal
 from .config import EnvConfig, EvaluationConfig
 from .early_stopping import EarlyStopper
 from .evaluation import evaluate_model_on_goals
@@ -46,7 +45,7 @@ class SnapshotAndEvalCallback(BaseCallback):
 			eval_episodes=self.eval_episodes,
 			n_envs=self.eval_envs
 		)
-		avg_reward: float = np.mean(list(reward_by_goal.values()))
+		avg_reward: float = np.mean(reward_by_goal)
 
 		if avg_reward > self.best_reward:
 			self.best_reward = avg_reward

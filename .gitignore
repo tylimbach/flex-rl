@@ -11,7 +11,6 @@ __pycache__/
 .venv/
 .env/
 venv/
-env/
 
 # PyTorch / Model Artifacts
 *.pt

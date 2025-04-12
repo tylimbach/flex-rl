@@ -2,13 +2,13 @@ import logging
 import os
 
 import hydra
-from omegaconf import OmegaConf
 import numpy as np
+from omegaconf import OmegaConf
 from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-from .envs import GoalSampler, Goal
-from .train_utils import make_env, save_media, TopLevelConfig
+from .envs import GoalSampler
+from .train_utils import TopLevelConfig, make_env, save_media, goal_from_cfg
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -27,7 +27,7 @@ def main(cfg):
 	raw = OmegaConf.load(config_path)
 	env_cfg = OmegaConf.structured(TopLevelConfig(**raw))
 
-	goals = [Goal.from_cfg(x.name, x.weight) for x in env_cfg.env.sampling_goals]
+	goals = [goal_from_cfg(x) for x in env_cfg.env.sampling_goals]
 	goal_sampler = GoalSampler(strategy="balanced", goals=goals)
 	render_mode = "rgb_array" if cfg.mp4_path or cfg.gif_path else "human"
 

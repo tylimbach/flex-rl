@@ -24,8 +24,7 @@ from .train_utils import (
 	save_metadata,
 	TrainingResult,
 	TopLevelConfig,
-	EnvConfig,
-	EvaluationConfig
+	goal_from_cfg
 )
 
 log: logging.Logger = logging.getLogger(__name__)
@@ -82,7 +81,7 @@ def train(cfg: TopLevelConfig, workspace_dir: str) -> TrainingResult:
 	os.makedirs(log_dir, exist_ok=True)
 
 	n_envs: int = cfg.training.n_envs
-	train_goals = [Goal.from_cfg(x.name, x.weight) for x in cfg.env.sampling_goals]
+	train_goals = [goal_from_cfg(x) for x in cfg.env.sampling_goals]
 	goal_sampler = GoalSampler(strategy=cfg.env.sampling_strategy, goals=train_goals)
 
 	normalize_path = None
@@ -129,7 +128,8 @@ def train(cfg: TopLevelConfig, workspace_dir: str) -> TrainingResult:
 			tensorboard_log=log_dir,
 		)
 
-	save_metadata(workspace_dir, OmegaConf.to_container(OmegaConf.structured(cfg), resolve=True), parent=parent_path, resumed_at=resumed_at)
+	raw_cfg = OmegaConf.to_container(OmegaConf.structured(cfg), resolve=True)
+	save_metadata(workspace_dir, raw_cfg, parent=parent_path, resumed_at=resumed_at)
 	log.info(f"📝 Metadata saved at {workspace_dir}/metadata.yaml")
 
 	eval_env = DummyVecEnv([
@@ -167,7 +167,7 @@ def train(cfg: TopLevelConfig, workspace_dir: str) -> TrainingResult:
 		save_full_snapshot(model, env, snap_dir)
 	finally:
 		print_summary(workspace_dir)
-		return TrainingResult(eval_cb.best_reward, eval_cb.model, env, cfg.parent_model)
+		return TrainingResult(eval_cb.best_reward, eval_cb.ctx.model, env, cfg.parent_model)
 
 if __name__ == "__main__":
 	main()

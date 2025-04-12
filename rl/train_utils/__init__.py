@@ -7,6 +7,7 @@ from .media import save_media
 from .metadata import save_metadata
 from .snapshot import save_full_snapshot, update_snapshot_log
 from .summary import print_summary
+from .config_loader import *
 from .training import *
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
 	"SnapshotAndEvalCallback",
 	"EarlyStopper",
 	"config",
-	"training"
+	"training",
+	"config_loader"
 ]

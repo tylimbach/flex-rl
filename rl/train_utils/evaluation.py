@@ -1,12 +1,9 @@
-import os
 from stable_baselines3.common.base_class import BaseAlgorithm
-import yaml
 import numpy as np
 import logging
 import math
 
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-from sb3_contrib import RecurrentPPO
 
 from ..envs import GoalSampler, Goal
 from .config import EnvConfig
@@ -21,8 +18,8 @@ def evaluate_model_on_goals(
 	goals: list[Goal],
 	eval_episodes: int,
 	n_envs: int = 1
-) -> dict[Goal, float]:
-	results = {}
+) -> list[float]:
+	results = list()
 	for goal in goals:
 		sampler = GoalSampler.single(goal)
 		env_fns = [make_env(env_cfg["env_id"], sampler) for _ in range(n_envs)]
@@ -58,7 +55,7 @@ def evaluate_model_on_goals(
 		episode_rewards = episode_rewards[:eval_episodes]
 		mean_reward = np.mean(episode_rewards)
 		log.info(f"✅ Goal '{goal}': Mean reward over {eval_episodes} episodes: {mean_reward:.2f}")
-		results[goal] = mean_reward
+		results.append(mean_reward)
 	return results
 
 

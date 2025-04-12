@@ -1,8 +1,7 @@
 import os
 from typing import Any
 from stable_baselines3.common.monitor import Monitor
-from rl.envs.goal import GoalSampler
-from rl.envs.humanoid_goal_wrapper import HumanoidGoalWrapper
+from ..envs import GoalSampler, HumanoidGoalWrapper
 import gymnasium as gym
 
 

@@ -1,35 +1,40 @@
+import numpy as np
+
 from gymnasium import Wrapper, Env
 from gymnasium.core import ObsType, ActType
-from typing import Any, override
+from typing import Any, final, override
 
-from ..envs import GoalSampler, Goal
+from .goal import GoalSampler, StepHistory, StepResult
 
+@final
 class HumanoidGoalWrapper(Wrapper[ObsType, ActType, ObsType, ActType]):
 	def __init__(self, env: Env[ObsType, ActType], goal_sampler: GoalSampler):
 		super().__init__(env)
+		self.step_history = StepHistory()
 		self.goal_sampler = goal_sampler
-		self.goal: Goal = goal_sampler.peek()
-		self.prev_info: dict[str, Any] = {}
+		self.goal = goal_sampler.peek()
 
 	@override
 	def reset(self, **kwargs) -> tuple[ObsType, dict[str, Any]]:
 		self.goal = self.goal_sampler.next()
+
 		obs, info = self.env.reset(**kwargs)
-		self.prev_info = info.copy()
-		info["goal"] = self.goal.name
+		self.step_history.clear()
+		self.goal.init(self.env)
+
 		return obs, info
 
 	@override
 	def step(self, action: ActType) -> tuple[ObsType, float, bool, bool, dict[str, Any]]:
 		obs, reward, terminated, truncated, info = self.env.step(action)
-		goal_reward = self.goal.compute_reward(self.prev_info, info)
-		reward = float(reward) + goal_reward
+		step_result = StepResult(obs, float(reward), terminated, truncated, info)	
 
-		if self.goal.check_termination(info):
-			terminated = True
-
-		info["goal"] = self.goal.name
-		info["goal_reward"] = goal_reward
-		self.prev_info = info.copy()
+		self.step_history.push(step_result)
+		reward = self.goal.compute_reward(self.step_history)
+		terminated = self.goal.check_termination(step_result)
+		
+		# update mutable step result
+		step_result.reward = reward
+		step_result.terminated = terminated
 
 		return obs, reward, terminated, truncated, info

@@ -1,18 +1,29 @@
 from dataclasses import dataclass
-from typing import final
-
 
 @dataclass
-class SamplingGoal:
-	name: str
-	weight: float
+class RewardWeightsConfig:
+	forward: float = 0.0
+	backward: float = 0.0
+	turn: float = 0.0
+	stand: float = 0.0
+	stand_up: float = 0.0
+	jump: float = 0.0
+	survive: float = 0.0
+	ctrl: float = 0.0
+	contact: float = 0.0
 
+@dataclass
+class SamplingGoalConfig:
+	weight: float
+	reward_weights: RewardWeightsConfig
+	termination_fn: str | None
+	init_fn: str | None
 
 @dataclass
 class EnvConfig:
 	env_id: str
 	sampling_strategy: str
-	sampling_goals: list[SamplingGoal]
+	sampling_goals: list[SamplingGoalConfig]
 
 
 @dataclass

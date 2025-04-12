@@ -1,5 +1,9 @@
 env_id: Humanoid-v5
 sampling_strategy: single
 sampling_goals:
-  - name: turn_right
-    weight: 250.0
+  - weight: 1.0
+    reward_weights:
+      right: 100.0
+      survive: 1.0
+      ctrl: 0.5
+      contact: 0.5

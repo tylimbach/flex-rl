@@ -154,3 +154,11 @@ logs-llm:
 
 logs-rl:
 	kubectl logs deployment/rl-infer -c rl-infer --tail=100 -f
+
+mlflow-up:
+	mlflow server \
+		--host 127.0.0.1 \
+		--port 5001 \
+		--backend-store-uri sqlite:///mlflow.db \
+		--default-artifact-root ./mlruns
+

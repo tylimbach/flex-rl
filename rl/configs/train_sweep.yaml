@@ -10,5 +10,3 @@ hydra:
   
   job:
     chdir: True
-
-experiment_name: humanoid_sweep_${env}

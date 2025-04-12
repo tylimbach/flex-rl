@@ -2,7 +2,7 @@
 
 **flex-rl** explores the future of adaptable embodied agents by combining reinforcement learning (RL) with large language models (LLMs). The project’s long-term goal is to enable dynamic skill switching using LLM-guided instructions and real-time feedback, allowing agents to respond fluidly to their environment and external commands.
 
-The system already supports scalable training and inference pipelines for on-policy Recurrent PPO with humanoid agents, LLM inference with PyTorch, and end-to-end infrastructure built for local and cloud-scale experimentation.
+The system already supports scalable training and inference pipelines for on-policy Recurrent PPO with humanoid agents, LLM inference with PyTorch, and **end-to-end infrastructure** built for local and cloud-scale experimentation.
 
 <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;">
 	<img src="assets/run_forward.gif" width="23%" />
@@ -28,7 +28,7 @@ The system already supports scalable training and inference pipelines for on-pol
 [ External Instruction: "Go around the obstacle!" ] ──┘
 ```
 
-> **Goal:** Leverage pre-trained, possibly fine-tuned LLMs to select from a library of motor policies in response to environment state and natural language instructions.
+> **Goal:** Leverage pre-trained or fine-tuned LLMs to select from a library of motor policies in response to environment state and natural language instructions.
 
 The LLM integration is self-managed and an **active work-in progress**, including support for:
 
