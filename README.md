@@ -1,8 +1,8 @@
-# flex-rl — Adaptable Agents with RL and LLMs
+# flex-rl
 
-**flex-rl** explores the future of adaptable embodied agents by combining reinforcement learning (RL) with large language models (LLMs). The project’s long-term goal is to enable dynamic skill switching using LLM-guided instructions and real-time feedback, allowing agents to respond fluidly to their environment and external commands.
+**flex-rl** is a full-stack research and engineering environment for training adaptable embodied agents using reinforcement learning and large language models (LLMs). It combines fast, modular experimentation workflows with a growing infrastructure layer designed for scalable cloud deployment and multi-GPU inference.
 
-The system already supports scalable training and inference pipelines for on-policy Recurrent PPO with humanoid agents, LLM inference with PyTorch, and **end-to-end infrastructure** built for local and cloud-scale experimentation.
+## 🔧 Built for Research
 
 <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;">
 	<img src="assets/run_forward.gif" width="23%" />
@@ -12,71 +12,90 @@ The system already supports scalable training and inference pipelines for on-pol
 </div>
 <p align="center"><em>Humanoid agent policies trained with Recurrent PPO</em></p>
 
-## Vision & Roadmap
+Launching a training or inference session from a default template takes just a command:
 
 ```bash
-[ Environment ]
-        ↓
-[ Observation Encoding: "Agent: (15, 30), Obstacle: (18, 28), Target: (20, 25)..." ]
-        ↓
-[ LLM Prompt: "Choose the best action ..." ] ←────────┐
-        ↓                                             │
-[ LLM Output: "move_right" ]                          │
-        ↓                                             │
-[ Agent Policy Execution ]                            │
-                                                      │
-[ External Instruction: "Go around the obstacle!" ] ──┘
+# train
+python -m rl.train env=humanoid_walk_forward experiment_name=walk_forward
+
+# render eval
+python -m rl.play model_dir=workspace/walk_forward/best
+
+# prompt a pre-trained local llm 
+python -m llm.infer prompt="How are you?"
 ```
 
-> **Goal:** Leverage pre-trained or fine-tuned LLMs to select from a library of motor policies in response to environment state and natural language instructions.
+Custom configurations are easily launched with CLI overrides or config variants:
 
-The LLM integration is self-managed and an **active work-in progress**, including support for:
+```bash
+# provide custom env + hyperparameters
+python -m rl.train env=custom_humanoid_env training.n_envs=2 training.learning_rate=0.0003
 
-- Sharded inference across GPUs using PyTorch FSDP
-- Prompt encoding from simulation states
-- Real-time instruction injection
-- Goal-conditioned inference steering
+# save to gif
+python -m rl.play model_dir=workspace/default/best gif_path=custom_eval.gif
 
+# load specific model + parameter overrides
+python -m llm.infer --config-name=qwen-1.5 torch_dtype=float16
+```
 
-## Key features (Implemented)
+Many features are already implemented and maturing:
 
-- Train MuJoCo humanoid agents using Recurrent PPO
-- Flexible hyperparameter sweeps (CLI overrides + YAML config)
-- Local experiment tracking with growing MLFlow integration
-- Containerized RL + inference workflows
-- Multi-GPU LLM inference using HuggingFace Transformers
-- Infrastructure-as-code stack (Terraform, Docker, Helm, Kubernetes)
-- Deployment modes for local testing, minikube, and Google Cloud Platform (GCP)
+- [x] **Train MuJoCo humanoids** in directional locomotion with on-policy Recurrent PPO
+- [x] **Reward shaping framework** with dynamic weights and environment wrappers
+- [x] **Hydra-powered configs** for rapid experimentation and inference
+- [x] **Evaluation renders** with the MuJoCo viewer, or directly to mp4/gif
+- [x] **Growing MLFlow integration** to track experiments and sweeps
+- [x] **Containerized pipelines** for local/remote flexibility
+- [x] **FastAPI server** for LLM prompt inference
+- [x] **Infrastructure-as-Code** for cloud deployment with Terraform, Helm, and Kubernetes
 
----
+## 🧠 Vision: Embodied Agents Guided by LLMs
 
-## Powered By
+Long-term goal: bridge the gap between low-level RL control and high-level reasoning using LLMs. Agents will respond to natural language commands, switch behaviors mid-rollout, and reason about their goals with real-time LLM modulation.
 
-- [MuJoCo](https://mujoco.org/): Physics simulation engine with [Gymnasium](https://github.com/Farama-Foundation/Gymnasium) wrappers
-- [MLFlow](https://github.com/facebookresearch/hydra): Platform for experiment tracking and GUIs
-- [Transformers](https://github.com/huggingface/transformers): Pretrained LLMs and inference pipelines
-- [Stable Baselines3](https://github.com/DLR-RM/stable-baselines3): PPO RL algorithms
-- [Docker](https://www.docker.com/): Runtime containerization
-- [Helm](https://helm.sh/): [Kubernetes](https://kubernetes.io/) application management
-- [Terraform](https://www.terraform.io/): Infrastructure as code for cloud deployment
-- [Hydra](https://github.com/facebookresearch/hydra): Hierarchical configuration management on top of [OmegaConf](https://github.com/omry/omegaconf)
-- [FastAPI](https://fastapi.tiangolo.com/): Serving self-managed LLM inference requests
+```bash
+[ Environment State ]
+          ↓ 
+[ Encoded Prompt → LLM ]
+          ↓ 
+[ LLM Output: goal-conditioned skill ] 
+          ↓ 
+[ Agent Policy Execution ]
+```
 
----
+LLM integration is an **active work-in-progress** as operations are expanded to the cloud to support large open weight models, like LLaMA 4 Scout
 
-## Infrastructure Modes
+## 🛠️ Tech Stack
 
-| Mode               | Purpose                                 |
-|--------------------|------------------------------------------|
-| Local              | Training, debugging, rollouts            |
-| Docker             | Reproducible container builds            |
-| Minikube           | Local Kubernetes job testing             |
-| Cloud                | Multi-GPU inference and autoscaling  |
+| Domain              | Tools                                                                 |
+|---------------------|------------------------------------------------------------------------|
+| Physics Sim         | MuJoCo + Gymnasium wrappers                                            |
+| RL Training         | Stable Baselines3 (Recurrent PPO), custom reward/term/env wrappers     |
+| Experiment Tracking | MLFlow, Hydra                                                          |
+| Inference           | HuggingFace Transformers, PyTorch, FSDP, FastAPI                       |
+| Containerization    | Docker                                                                 |
+| Cloud Deployment    | Terraform, Helm, Kubernetes, Google Cloud Provider (GCP)               |
 
----
+**Deployment Modes:**
 
-## Project Scope
+- **Local** – training, debugging, rollouts
+- **Docker** – reproducible container builds
+- **Cloud (WIP)** – multi-GPU inference and autoscaling
 
-This is an independent, research-grade prototype. While not intended as a framework, it reflects my efforts to follow real-world infrastructure design for RL pipelines, agent simulation, and distributed inference.
+## 🧪 Try it Out Soon
 
-Researchers and engineers are welcome to explore the implementation, adapt patterns, or extend components. Contributions and feedback are encouraged, I'd love to talk to anyone pursuing this area of work.
+> ⚠️ This project is evolving quickly — documentation is in progress.
+
+Both the `rl` and `llm` environments have a dedicated `requirements.txt` and `Dockerfile`. You can clone the repo and run local training or inference today.
+
+If you're interested in testing things out, I'm happy to document the process and help minimize friction. Reach out or open an issue if you’d like to explore or contribute.
+
+## 🤝 Why This Exists
+
+I’m an engineer with a deep interest in simulation and research for robotics and AI, diving in headfirst and building the infrastructure I need as I go. This project is my way of learning:
+
+- Architectures and tooling that make research fast, modular, and reproducible
+- How to efficiently scale GPU-accelerated ML workflows to the cloud
+- Modern strategies for training and controlling embodied agents
+
+If you’re working on similar problems in RL tooling, sim-to-real robotics, policy learning with LLMs, I’d love to collaborate or chat.
