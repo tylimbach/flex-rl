@@ -63,8 +63,9 @@ InitFn = Callable[[Env[Any, Any]], None]
 class RewardWeights:
 	forward: float = 0.0
 	backward: float = 0.0
-	turn: float = 0.0
-	stand: float = 0.0
+	right: float = 0.0
+	left: float = 0.0
+	stand_still: float = 0.0
 	stand_up: float = 0.0
 	jump: float = 0.0
 	survive: float = 0.0
@@ -81,10 +82,12 @@ def compute_reward_from_weights(history: StepHistory, weights: RewardWeights) ->
 		total += weights.forward * reward_forward(history)
 	if weights.backward != 0.0:
 		total += weights.backward * reward_backward(history)
-	if weights.turn != 0.0:
-		total += weights.turn * reward_turn(history)
-	if weights.stand != 0.0:
-		total += weights.stand * reward_stand(history)
+	if weights.right != 0.0:
+		total += weights.right * reward_right(history)
+	if weights.left != 0.0:
+		total += weights.left * reward_left(history)
+	if weights.stand_still != 0.0:
+		total += weights.stand_still * reward_stand_still(history)
 	if weights.stand_up != 0.0:
 		total += weights.stand_up * reward_stand_up(history)
 	if weights.jump != 0.0:
@@ -151,15 +154,18 @@ def get_default_rewards(info: dict[str, Any]) -> dict[str, float]:
 	}
 
 def reward_forward(history: StepHistory) -> float:
-	return history.delta(lambda s: s.info.get("x_position", 0.0), steps=10)
+	return history.delta(lambda s: s.info.get("x_position", 0.0), steps=5)
 
 def reward_backward(history: StepHistory) -> float:
-	return -history.delta(lambda s: s.info.get("x_position", 0.0), steps=10)
+	return -history.delta(lambda s: s.info.get("x_position", 0.0), steps=5)
 
-def reward_turn(history: StepHistory) -> float:
-	return history.delta(lambda s: s.info.get("y_position", 0.0), steps=10)
+def reward_right(history: StepHistory) -> float:
+	return -history.delta(lambda s: s.info.get("y_position", 0.0), steps=5)
 
-def reward_stand(history: StepHistory) -> float:
+def reward_left(history: StepHistory) -> float:
+	return history.delta(lambda s: s.info.get("y_position", 0.0), steps=5)
+
+def reward_stand_still(history: StepHistory) -> float:
 	curr = history.last()
 	prev = history.prev()
 	if curr is None or prev is None:
@@ -172,12 +178,43 @@ def reward_stand_up(history: StepHistory) -> float:
 	curr = history.last()
 	if curr is None:
 		return 0.0
+
 	obs = curr.obs
-	z
-	# quat_w = obs[1]
-	# ang_vel = sum(abs(v) for v in obs[25:28])
-	# return 1.2 * z_pos + 0.8 * quat_w - 0.4 * ang_vel
-	return z_pos
+
+	z_pos = obs[0]
+	z_vel = obs[24]
+	torso_quat = obs[1:5]  # [w, x, y, z]
+	abdomen_angles = obs[5:8]
+
+	# --- Lift component ---
+	reward_upward_motion = max(z_vel, 0.0)
+
+	# --- Standing height (soft threshold) ---
+	# Use tanh to encourage z_pos > 1.0 without punishing falling
+	standing_height_score = np.tanh(max(z_pos - 0.9, 0.0))
+
+	# --- Uprightness from quaternion ---
+	# We want torso's up vector to align with world Z: [0, 0, 1]
+	# In local frame, up = [0, 0, 1]; rotate it to world
+	w, x, y, z = torso_quat
+	up_vector_world = np.array([
+		2*(x*z - w*y),
+		2*(y*z + w*x),
+		1 - 2*(x*x + y*y)
+	])
+	upright_score = up_vector_world[2]  # dot([0, 0, 1]) = Z component
+
+	# --- Posture penalty (optional) ---
+	abdomen_slouch = np.abs(abdomen_angles[1]) + np.abs(abdomen_angles[2])
+	posture_penalty = min(abdomen_slouch, 1.0)
+
+	# Combine
+	return (
+		0.5 * reward_upward_motion +
+		1.0 * standing_height_score +
+		1.0 * upright_score -
+		0.2 * posture_penalty
+	)
 
 def reward_jump(history: StepHistory) -> float:
 	curr = history.last()
@@ -220,9 +257,7 @@ def jump_reward(history: StepHistory) -> float:
 	z_pos_thresh = 1.2
 	z_pos_reward = z_pos if z_pos > z_pos_thresh else 0.0
 
-	default = get_default_rewards(curr.info)
-
-	return max(0.0, z_vel) + z_pos_reward + default["healthy"]
+	return max(0.0, z_vel) + z_pos_reward
 
 def terminate_never(curr: StepResult) -> bool:
 	return False
@@ -242,7 +277,7 @@ def init_fallen(env) -> None:
 	])
 	for i in range(5, 17):
 		qpos[i] += np.random.uniform(-0.1, 0.1)
-	qvel += np.random.normal(0, 0.01, size=qvel.shape)
+	# qvel += np.random.normal(0, 0.001, size=qvel.shape)
 
 	base_env.data.qpos[:] = qpos
 	base_env.data.qvel[:] = qvel

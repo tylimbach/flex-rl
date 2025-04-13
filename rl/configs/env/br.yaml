@@ -3,6 +3,7 @@ sampling_strategy: single
 sampling_goals:
   - weight: 1.0
     reward_weights:
+      backward: 250.0
       right: 250.0
       survive: 1.0
       ctrl: 0.5
