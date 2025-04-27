@@ -70,7 +70,7 @@ LLM integration is an **active work-in-progress** as operations are expanded to 
 | Domain              | Tools                                                                 |
 |---------------------|------------------------------------------------------------------------|
 | Physics Sim         | MuJoCo + Gymnasium wrappers                                            |
-| RL Training         | Stable Baselines3 (Recurrent PPO), custom reward/term/env wrappers     |
+| RL Training         | Stable Baselines3 (Recurrent PPO)|
 | Experiment Tracking | MLFlow, Hydra                                                          |
 | Inference           | HuggingFace Transformers, PyTorch, FSDP, FastAPI                       |
 | Containerization    | Docker                                                                 |

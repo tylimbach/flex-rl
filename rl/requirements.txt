@@ -12,3 +12,4 @@ hydra-submitit-launcher==1.2.0
 omegaconf==2.3.0
 moviepy==2.1.2
 mlflow==2.21.3
+triton==3.2.0

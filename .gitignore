@@ -54,3 +54,7 @@ terraform.tfstate*
 # Helm
 infra/helm/**/charts/
 infra/helm/**/templates/*.tpl
+
+mlruns/
+mlflow.db
+MUJOCO_LOG.TXT

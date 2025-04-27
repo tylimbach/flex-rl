@@ -1,0 +1,51 @@
+# Default values for rl-training
+replicaCount: 2
+
+image:
+  repository: gcr.io/flex-rl/rl-training
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+serviceAccount:
+  create: true
+  name: "rl-training-sa"
+
+resources:
+  limits:
+    cpu: 7
+    memory: 16Gi
+    nvidia.com/gpu: 1
+  requests:
+    cpu: 6
+    memory: 12Gi
+    nvidia.com/gpu: 1
+
+storage:
+  pvcName: "rl-training-pvc"
+  bucketName: "flex-rl-training-data" # GCS bucket name
+
+mlflow:
+  uri: "http://mlflow-service:5000"
+  
+training:
+  command: ["python", "-m", "rl.distributed_train"]
+  args:
+    - "--config-name=distributed"
+    - "training.device=cuda"
+    - "training.n_envs=16"
+    - "training.total_timesteps=10000000"
+    - "runtime.workspace_path=/app/data"
+    - "runtime.mlflow_uri=$(MLFLOW_TRACKING_URI)"
+
+nodeSelector:
+  accelerator: t4
+  workload: rl-training
+
+volumes:
+  - name: training-data
+    persistentVolumeClaim:
+      claimName: rl-training-pvc
+
+volumeMounts:
+  - name: training-data
+    mountPath: /app/data

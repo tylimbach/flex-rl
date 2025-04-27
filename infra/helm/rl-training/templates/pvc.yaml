@@ -1,0 +1,28 @@
+# Using GCS Fuse CSI Driver for persistent storage from GCS bucket
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.storage.pvcName }}
+  labels:
+    {{- include "rl-training.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: standard-rwo
+---
+# Create a ConfigMap for gcsfuse integration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gcs-fuse-config
+  labels:
+    {{- include "rl-training.labels" . | nindent 4 }}
+data:
+  mount-gcs.sh: |
+    #!/bin/bash
+    mkdir -p /app/data
+    gcsfuse --implicit-dirs {{ .Values.storage.bucketName }} /app/data
+    echo "GCS bucket mounted successfully"

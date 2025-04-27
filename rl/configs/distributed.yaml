@@ -1,0 +1,54 @@
+# @package _global_
+experiment_name: distributed_ppo_training
+parent_model: null
+
+env:
+  env_id: Humanoid-v4
+  sampling_strategy: balanced
+  sampling_goals:
+    - weight: 1.0
+      reward_weights:
+        forward: 1.0
+        backward: 0.0
+        turn: 0.0
+        stand: 0.5
+        stand_up: 5.0
+        jump: 0.0
+        survive: 0.05
+        ctrl: 0.001
+        contact: 0.001
+      termination_fn: null
+      init_fn: null
+
+training:
+  policy: "MlpLstmPolicy"
+  n_envs: 16  # Vectorized environments per GPU
+  total_timesteps: 10000000
+  learning_rate: 0.0003
+  batch_size: 128
+  n_steps: 2048
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.0
+  clip_range: 0.2
+  policy_net: [64, 64]
+  value_net: [64, 64]
+  clip_obs: 10.0
+  device: "cuda"
+  early_stopper:
+    enabled: true
+    patience: 10
+    min_delta: 10.0
+    reward_key: "mean"
+    reward_threshold: 5000.0
+    fail_on_nan: true
+    max_runtime_minutes: 1440  # 24 hours
+
+evaluation:
+  eval_freq: 10000
+  eval_episodes: 10
+
+runtime:
+  workspace_path: "/app/data"
+  mlflow_uri: "http://mlflow-service:5000"

@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "rl-training.fullname" . }}
+  labels:
+    {{- include "rl-training.labels" . | nindent 4 }}
+spec:
+  parallelism: {{ .Values.replicaCount }}
+  completions: {{ .Values.replicaCount }}
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        {{- include "rl-training.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "rl-training.serviceAccountName" . }}
+      restartPolicy: Never
+      containers:
+      - name: trainer
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: {{ .Values.training.command }}
+        args:
+        {{- range .Values.training.args }}
+          - {{ . | quote }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        env:
+        - name: WORLD_SIZE
+          value: "{{ .Values.replicaCount }}"
+        - name: RANK
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+        - name: MASTER_ADDR
+          value: "{{ include "rl-training.fullname" . }}-0"
+        - name: MASTER_PORT
+          value: "29500"
+        - name: MLFLOW_TRACKING_URI
+          value: {{ .Values.mlflow.uri | quote }}
+        - name: MLFLOW_EXPERIMENT_NAME
+          value: {{ .Values.training.experiment_name | default "distributed_ppo_training" | quote }}
+        volumeMounts:
+        {{- toYaml .Values.volumeMounts | nindent 8 }}
+      volumes:
+      {{- toYaml .Values.volumes | nindent 6 }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
